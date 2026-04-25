@@ -1,0 +1,28 @@
+# Source that end-users don't need
+contracts/
+test/
+scripts/
+ignition/
+feedbacks/
+
+# Dev config
+hardhat.config.ts
+tsconfig.cli.json
+.env.example
+.nvmrc
+
+# Docs internal
+PLAN.md
+TASK.md
+CLAUDE.md
+
+# Artifacts
+artifacts/
+cache/
+coverage/
+dist/
+*.gas-snapshot
+snapshots/
+
+# Session files
+.neros-session

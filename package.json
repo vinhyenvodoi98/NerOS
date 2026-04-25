@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "mint": "tsx --tsconfig tsconfig.cli.json cli/commands/mint.ts",
+    "agent": "tsx --tsconfig tsconfig.cli.json cli/commands/agent.ts",
+    "history": "tsx --tsconfig tsconfig.cli.json cli/commands/history.ts",
+    "send-instruction": "tsx --tsconfig tsconfig.cli.json cli/commands/send-instruction.ts",
+    "watch": "tsx --tsconfig tsconfig.cli.json cli/commands/watch.ts"
   },
   "repository": {
     "type": "git",

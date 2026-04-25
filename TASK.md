@@ -16,8 +16,8 @@
   ```
 - [x] **T-003** Create `.env.example` (all keys from CLAUDE.md)
 - [x] **T-004** Configure `hardhat.config.ts`: Sepolia + Etherscan verify
-- [ ] **T-005** `tsconfig.json`: `"jsx": "react"` (required for Ink), `"moduleResolution": "bundler"`
-- [ ] **T-006** Add scripts to `package.json`:
+- [x] **T-005** `tsconfig.json`: `"jsx": "react"` (required for Ink), `"moduleResolution": "bundler"`
+- [x] **T-006** Add scripts to `package.json`:
   ```json
   "mint":             "tsx cli/commands/mint.ts",
   "agent":            "tsx cli/commands/agent.ts",

@@ -21,6 +21,9 @@
 .env.*
 !.env.example
 
+# CLI session state
+.neros-session
+
 # Hardhat coverage reports
 /coverage
 
