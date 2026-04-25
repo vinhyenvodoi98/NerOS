@@ -27,12 +27,12 @@
   ```
 
 ### 0G Storage Layer
-- [ ] **T-010** Create `0g/schema.ts` — `NFTPersonality`, `TradeMemory`, `TradeRecord` interfaces (see PLAN.md §1.3)
-- [ ] **T-011** Create `0g/client.ts`:
-  - `uploadJSON(data: object): Promise<string>` → returns CID
-  - `downloadJSON<T>(cid: string): Promise<T>` → returns parsed object
-- [ ] **T-012** Smoke test: upload `{ hello: "world" }` → get CID → download → assert equal
-- [ ] **T-013** Confirm 0G testnet is reachable; log CID to console
+- [x] **T-010** Create `0g/schema.ts` — `NFTPersonality`, `TradeMemory`, `TradeRecord` interfaces (see PLAN.md §1.3)
+- [x] **T-011** Create `0g/client.ts`:
+  - `uploadJSON(data: object): Promise<string>` → returns rootHash (0x hex, not IPFS CID)
+  - `downloadJSON<T>(rootHash: string): Promise<T>` → returns parsed object
+- [x] **T-012** Smoke test: upload `{ hello: "world" }` → get rootHash → download → assert equal
+- [x] **T-013** Confirm 0G testnet is reachable; rootHash: `0x807e97935ee2598a0a83a21a9324ff9b90dae4ec4cc845c7a542e92e50e56322`
 
 ### iNFT Smart Contract
 - [ ] **T-020** Write `contracts/iNFT.sol` (see PLAN.md §1.2):
