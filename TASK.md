@@ -8,10 +8,10 @@
 
 ### Setup & Scaffold
 - [x] **T-001** `npm init`, `npx hardhat init --typescript`
-- [ ] **T-002** Install deps:
+- [x] **T-002** Install deps:
   ```
-  @openzeppelin/contracts  @uniswap/v3-periphery  @anthropic-ai/sdk
-  ethers@6  ink  @inkjs/ui  chalk  ora  boxen  commander
+  @openzeppelin/contracts  @uniswap/v3-periphery  @0glabs/0g-serving-broker
+  @0gfoundation/0g-ts-sdk  ethers@6  ink  @inkjs/ui  chalk  ora  boxen  commander
   dotenv  tsx
   ```
 - [ ] **T-003** Create `.env.example` (all keys from CLAUDE.md)
@@ -62,9 +62,11 @@
   - `appendTrade(nftId, record)` → download current memory → append → upload new version → call `iNFT.updateMemory(tokenId, newCID)`
 - [ ] **T-042** `intelligence/agent/market.ts`:
   - `getPrice(token)` → CoinGecko free API → `{ price, change24h, volume }`
-- [ ] **T-043** `intelligence/agent/strategy.ts` — main Claude agent runner:
-  - Define 6 tools (see PLAN.md §2.1)
-  - Tool-use loop: send → handle tool calls → send results → repeat until `stop_reason === "end_turn"`
+- [ ] **T-043** `intelligence/agent/strategy.ts` — main 0G Compute agent runner:
+  - Init broker: `createZGComputeNetworkBroker(wallet)` from `@0glabs/0g-serving-broker`
+  - Get endpoint + headers: `broker.inference.getServiceMetadata(providerAddress)` + `broker.inference.getRequestHeaders(providerAddress)`
+  - Define 6 tools in OpenAI-compatible format (endpoint accepts `/chat/completions`)
+  - Tool-use loop: POST to `${endpoint}/chat/completions` → handle `tool_calls` → send results → repeat until `finish_reason === "stop"`
   - Build system prompt from `NFTPersonality`
   - Return `{ decision, reason, txHash, trace }`
 

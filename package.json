@@ -26,5 +26,20 @@
     "hardhat": "^3.4.1",
     "typescript": "~5.8.0",
     "viem": "^2.48.4"
+  },
+  "dependencies": {
+    "@0gfoundation/0g-ts-sdk": "^1.2.6",
+    "@0glabs/0g-serving-broker": "^0.7.5",
+    "@inkjs/ui": "^2.0.0",
+    "@openzeppelin/contracts": "^5.6.1",
+    "@uniswap/v3-periphery": "^1.4.4",
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.13.1",
+    "ink": "^7.0.1",
+    "ora": "^9.4.0",
+    "tsx": "^4.21.0"
   }
 }

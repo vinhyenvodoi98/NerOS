@@ -2,7 +2,7 @@
 
 ## What This Project Is
 
-An intelligent NFT that autonomously manages a DeFi portfolio. The NFT has an AI brain (Claude API + tool use), persistent memory and personality stored on 0G, a human-readable identity via ENS, executes real trades on Uniswap V3, and runs 24/7 via KeeperHub.
+An intelligent NFT that autonomously manages a DeFi portfolio. The NFT has an AI brain (0G Compute AI Inference + tool use), persistent memory and personality stored on 0G Storage, a human-readable identity via ENS, executes real trades on Uniswap V3, and runs 24/7 via KeeperHub.
 
 Demo pitch: *"I minted an NFT. It made me $200 while I slept. Here's the transaction history."*
 
@@ -19,7 +19,7 @@ NerOS/
 │   └── interfaces/
 ├── intelligence/
 │   ├── agent/
-│   │   ├── strategy.ts           # Claude API tool-use loop (main brain)
+│   │   ├── strategy.ts           # 0G Compute tool-use loop (main brain)
 │   │   ├── memory.ts             # 0G read/write for trade memory
 │   │   ├── personality.ts        # Load NFT personality from 0G
 │   │   ├── market.ts             # CoinGecko price fetcher
@@ -60,7 +60,7 @@ NerOS/
 | DEX | Uniswap V3 (SwapRouter02, `exactInputSingle`) |
 | Identity | ENS (ethers v6 resolver, text records) |
 | Automation | KeeperHub (`checkUpkeep` / `performUpkeep`) |
-| AI Brain | Anthropic Claude API (claude-sonnet-4-6, tool use) |
+| AI Brain | 0G Compute AI Inference (tool-use loop via 0G Compute Network) |
 | CLI UI | Ink (React for terminal), chalk, ora, boxen |
 | Language | TypeScript throughout |
 
@@ -70,7 +70,7 @@ NerOS/
 # .env — never commit
 PRIVATE_KEY=              # deployer + agent signer
 RPC_URL=                  # Sepolia RPC (Alchemy/Infura)
-ANTHROPIC_API_KEY=        # Claude API
+ZERO_G_PROVIDER_ADDRESS=  # 0G Compute provider address (from broker.inference.listService())
 ZERO_G_RPC=               # 0G storage node endpoint
 ZERO_G_PRIVATE_KEY=       # 0G storage signer
 ENS_RESOLVER=             # ENS PublicResolver on Sepolia
@@ -120,7 +120,7 @@ $ npm run agent -- --nft-id 1
   ● get_market_data ✓ ETH $2,401 ↓3.2%
   ● read_ens_instructions ✓ (none)
   ─────────────────────────────────
-  ETH retraced to support. Buying.
+  [0G Compute] ETH retraced to support. Buying.
   ● execute_trade   ✓ 0x4a3f...c291 ↗
   ● write_memory    ✓ CID: bafk...x7z ↗
   Decision: BUY · Cycle 13 · 4.2s

@@ -42,7 +42,8 @@ Target: **0G Track 2 — iNFT Innovation** + ENS + Uniswap + KeeperHub.
                                               │  intelligence/     │
                                               │  agent/strategy.ts │
                                               │                    │
-                                              │  Claude API        │
+                                              │  0G Compute        │
+                                              │  AI Inference      │
                                               │  tool-use loop:    │
                                               │  read_memory       │
                                               │  get_market_data   │
@@ -62,7 +63,7 @@ Target: **0G Track 2 — iNFT Innovation** + ENS + Uniswap + KeeperHub.
 
 #### 1.1 Project Scaffold
 - `npm init`, `npx hardhat init --typescript`
-- Install: `@openzeppelin/contracts`, `@uniswap/v3-periphery`, `@anthropic-ai/sdk`, `ethers@6`, `ink`, `chalk`, `ora`, `boxen`
+- Install: `@openzeppelin/contracts`, `@uniswap/v3-periphery`, `@0glabs/0g-serving-broker`, `@0gfoundation/0g-ts-sdk`, `ethers@6`, `ink`, `chalk`, `ora`, `boxen`
 - `.env` with all keys from CLAUDE.md
 - `hardhat.config.ts`: Sepolia + Etherscan verify
 
@@ -130,39 +131,91 @@ interface TradeRecord {
 ---
 
 ### Phase 2 — Intelligence Layer (Day 2)
-**Goal**: Claude API makes decisions using 0G memory, full tool-use loop runs.
+**Goal**: 0G Compute AI Inference makes decisions using 0G memory, full tool-use loop runs.
 
-#### 2.1 Claude Agent Tools
+#### 2.1 0G Compute Agent Tools
+
+0G Compute uses `@0glabs/0g-serving-broker` for auth/billing, then calls a standard `/chat/completions` endpoint. Tools are defined in OpenAI-compatible format.
+
 ```typescript
+import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
+import { ethers } from "ethers";
+
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+const broker = await createZGComputeNetworkBroker(wallet);
+
+// Get inference endpoint + signed request headers
+const { endpoint, model } = await broker.inference.getServiceMetadata(
+  process.env.ZERO_G_PROVIDER_ADDRESS!
+);
+const headers = await broker.inference.getRequestHeaders(
+  process.env.ZERO_G_PROVIDER_ADDRESS!
+);
+
+// Tool definitions — OpenAI-compatible format (endpoint accepts /chat/completions)
 const tools = [
-  { name: "read_memory",          // 0G personality + trade history
-    input_schema: { nftId: number } },
-  { name: "get_market_data",      // CoinGecko price, 24h change, volume
-    input_schema: { token: string } },
-  { name: "get_portfolio_balance",// PortfolioManager.getBalance()
-    input_schema: { nftId: number } },
-  { name: "read_ens_instructions",// ENS text record "inft.instruction"
-    input_schema: { ensName: string } },
-  { name: "execute_trade",        // PortfolioManager.executeTrade() → txHash
-    input_schema: { tokenIn, tokenOut, amountIn, slippagePct } },
-  { name: "write_memory",         // append TradeRecord to 0G, update on-chain CID
-    input_schema: { nftId: number, record: TradeRecord } },
-]
+  { type: "function", function: {
+      name: "read_memory",
+      description: "Load NFT personality and trade history from 0G Storage",
+      parameters: { type: "object", properties: { nftId: { type: "number" } }, required: ["nftId"] } } },
+  { type: "function", function: {
+      name: "get_market_data",
+      description: "Get current price, 24h change, and volume from CoinGecko",
+      parameters: { type: "object", properties: { token: { type: "string" } }, required: ["token"] } } },
+  { type: "function", function: {
+      name: "get_portfolio_balance",
+      description: "Get current token balances from PortfolioManager contract",
+      parameters: { type: "object", properties: { nftId: { type: "number" } }, required: ["nftId"] } } },
+  { type: "function", function: {
+      name: "read_ens_instructions",
+      description: "Read owner instruction from ENS text record inft.instruction",
+      parameters: { type: "object", properties: { ensName: { type: "string" } }, required: ["ensName"] } } },
+  { type: "function", function: {
+      name: "execute_trade",
+      description: "Execute a swap via PortfolioManager → Uniswap V3",
+      parameters: { type: "object",
+        properties: { tokenIn: { type: "string" }, tokenOut: { type: "string" },
+                      amountIn: { type: "string" }, slippagePct: { type: "number" } },
+        required: ["tokenIn", "tokenOut", "amountIn", "slippagePct"] } } },
+  { type: "function", function: {
+      name: "write_memory",
+      description: "Append trade record to 0G Storage and update on-chain CID",
+      parameters: { type: "object", properties: { nftId: { type: "number" }, record: { type: "object" } }, required: ["nftId", "record"] } } },
+];
 ```
 
 #### 2.2 Decision Loop
-```
-1. read_memory(nftId)           → personality + trade history from 0G
-2. get_market_data(ETH/USDC)    → current prices
-3. get_portfolio_balance(nftId) → current holdings
-4. read_ens_instructions(name)  → owner override (if any)
-5. [Claude reasons]
-6. BUY/SELL → execute_trade()  → txHash
-   HOLD     → skip trade
-7. write_memory()               → append decision to 0G log
+
+```typescript
+const messages = [{ role: "system", content: systemPrompt }, { role: "user", content: "Run your decision cycle." }];
+
+while (true) {
+  const res = await fetch(`${endpoint}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({ model, messages, tools }),
+  });
+  const data = await res.json();
+  const choice = data.choices[0];
+
+  if (choice.finish_reason === "stop") break;
+
+  // handle tool_calls
+  for (const call of choice.message.tool_calls ?? []) {
+    const args = JSON.parse(call.function.arguments);
+    const result = await toolHandlers[call.function.name](args);
+    messages.push(choice.message);
+    messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
+  }
+}
+
+// Flow: read_memory → get_market_data → get_portfolio_balance
+//       → read_ens_instructions → [model reasons]
+//       → execute_trade (if BUY/SELL) → write_memory
 ```
 
-#### 2.3 System Prompt
+#### 2.3 System Prompt (sent to 0G Compute inference)
 ```
 You are the autonomous AI brain of iNFT #{id}, named {name}.
 Personality: {style}, risk level {riskLevel}/10.
@@ -173,6 +226,8 @@ If BUY or SELL, call execute_trade. Always end by calling write_memory.
 Justify every decision in one sentence.
 If owner sent ENS instructions, prioritize them.
 ```
+
+> Model selection: use whichever model 0G Compute exposes that supports function calling (tool use). Check `ZERO_G_COMPUTE_URL` docs for available model IDs.
 
 #### 2.4 Checkpoint
 - `npm run agent -- --nft-id 1` runs, shows all tool calls streaming in Ink
@@ -314,7 +369,8 @@ contract KeeperAdapter {
 | 0G SDK API breaking / undocumented | High | Timebox 4h Day 1; fallback to IPFS if 0G upload fails |
 | Uniswap no testnet liquidity | Medium | Hardhat mainnet fork for tests; use smallest swap amounts in demo |
 | KeeperHub registration slow | Medium | `npm run agent -- --force` skips Keeper for demo |
-| Claude API > 5s latency | Low | Stream response; Ink spinner shows progress |
+| 0G Compute latency > 5s | Low | Stream response; Ink spinner shows progress |
+| 0G Compute model lacks tool-use support | Medium | Fallback: parse JSON from raw completion; wrap in manual tool-call loop |
 | Demo wallet underfunded | High | Pre-fund 2 wallets (0.5 ETH + 200 USDC each) day before |
 | Terminal colors differ across machines | Low | Test on judge's OS; chalk auto-detects color support |
 
