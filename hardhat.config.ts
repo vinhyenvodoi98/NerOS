@@ -6,10 +6,10 @@ export default defineConfig({
   solidity: {
     profiles: {
       default: {
-        version: "0.8.28",
+        version: "0.8.24",
       },
       production: {
-        version: "0.8.28",
+        version: "0.8.24",
         settings: {
           optimizer: {
             enabled: true,
@@ -20,19 +20,21 @@ export default defineConfig({
     },
   },
   networks: {
-    hardhatMainnet: {
+    hardhat: {
       type: "edr-simulated",
       chainType: "l1",
-    },
-    hardhatOp: {
-      type: "edr-simulated",
-      chainType: "op",
     },
     sepolia: {
       type: "http",
       chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      url: configVariable("RPC_URL"),
+      accounts: [configVariable("PRIVATE_KEY")],
+    },
+    "0g-galileo": {
+      type: "http",
+      chainType: "l1",
+      url: "https://evmrpc-testnet.0g.ai",
+      accounts: [configVariable("PRIVATE_KEY")],
     },
   },
 });

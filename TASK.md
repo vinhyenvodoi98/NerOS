@@ -14,8 +14,8 @@
   @0gfoundation/0g-ts-sdk  ethers@6  ink  @inkjs/ui  chalk  ora  boxen  commander
   dotenv  tsx
   ```
-- [ ] **T-003** Create `.env.example` (all keys from CLAUDE.md)
-- [ ] **T-004** Configure `hardhat.config.ts`: Sepolia + Etherscan verify
+- [x] **T-003** Create `.env.example` (all keys from CLAUDE.md)
+- [x] **T-004** Configure `hardhat.config.ts`: Sepolia + Etherscan verify
 - [ ] **T-005** `tsconfig.json`: `"jsx": "react"` (required for Ink), `"moduleResolution": "bundler"`
 - [ ] **T-006** Add scripts to `package.json`:
   ```json
