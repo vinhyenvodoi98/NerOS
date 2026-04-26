@@ -41,8 +41,8 @@
   - `updateMemory(tokenId, newCID)` → `onlyAuthorized` modifier
   - `setPortfolioManager(tokenId, addr)` → only NFT owner
   - `getIntelligence(tokenId)` → view
-- [ ] **T-021** Write `test/iNFT.test.ts` — mint, updateMemory, access control
-- [ ] **T-022** Write `scripts/deploy-inft.ts` → logs address, writes to `deployments.json`
+- [x] **T-021** Write `test/iNFT.test.ts` — mint, updateMemory, access control
+- [x] **T-022** Write `scripts/deploy-inft.ts` → logs address, writes to `deployments.json`
 - [ ] **T-023** Deploy to Sepolia + `npx hardhat verify`
 
 ### Day 1 Integration Check
