@@ -2,7 +2,7 @@ import { network } from "hardhat";
 import fs from "node:fs";
 import path from "node:path";
 
-const { viem } = await network.connect("sepolia");
+const { viem } = await network.create("sepolia");
 
 console.log("Deploying iNFT to Sepolia...");
 
