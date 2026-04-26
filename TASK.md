@@ -55,14 +55,14 @@
 ## DAY 2 — Intelligence Layer
 
 ### Agent Modules
-- [ ] **T-040** `intelligence/agent/personality.ts`:
+- [x] **T-040** `intelligence/agent/personality.ts`:
   - `loadPersonality(nftId)` → reads on-chain `personalityHash` → downloads from 0G → returns `NFTPersonality`
-- [ ] **T-041** `intelligence/agent/memory.ts`:
+- [x] **T-041** `intelligence/agent/memory.ts`:
   - `loadMemory(nftId)` → reads on-chain `memoryHash` → downloads from 0G → returns `TradeMemory`
   - `appendTrade(nftId, record)` → download current memory → append → upload new version → call `iNFT.updateMemory(tokenId, newCID)`
-- [ ] **T-042** `intelligence/agent/market.ts`:
+- [x] **T-042** `intelligence/agent/market.ts`:
   - `getPrice(token)` → CoinGecko free API → `{ price, change24h, volume }`
-- [ ] **T-043** `intelligence/agent/strategy.ts` — main 0G Compute agent runner:
+- [x] **T-043** `intelligence/agent/strategy.ts` — main 0G Compute agent runner:
   - Init broker: `createZGComputeNetworkBroker(wallet)` from `@0glabs/0g-serving-broker`
   - Get endpoint + headers: `broker.inference.getServiceMetadata(providerAddress)` + `broker.inference.getRequestHeaders(providerAddress)`
   - Define 6 tools in OpenAI-compatible format (endpoint accepts `/chat/completions`)
@@ -71,12 +71,12 @@
   - Return `{ decision, reason, txHash, trace }`
 
 ### Tool Handlers (stubs acceptable for Day 2)
-- [ ] **T-044** `read_memory` → calls `loadMemory()` + `loadPersonality()`
-- [ ] **T-045** `get_market_data` → calls `getPrice()`
-- [ ] **T-046** `get_portfolio_balance` → stub: returns hardcoded `{ USDC: "100", ETH: "0.01" }` (real: Day 3)
-- [ ] **T-047** `read_ens_instructions` → stub: returns `null` (real: Day 3)
-- [ ] **T-048** `execute_trade` → stub: logs intent, returns `{ txHash: "0xstub" }` (real: Day 3)
-- [ ] **T-049** `write_memory` → calls `appendTrade()`
+- [x] **T-044** `read_memory` → calls `loadMemory()` + `loadPersonality()`
+- [x] **T-045** `get_market_data` → calls `getPrice()`
+- [x] **T-046** `get_portfolio_balance` → stub: returns hardcoded `{ USDC: "100", ETH: "0.01" }` (real: Day 3)
+- [x] **T-047** `read_ens_instructions` → stub: returns `null` (real: Day 3)
+- [x] **T-048** `execute_trade` → stub: logs intent, returns `{ txHash: "0xstub" }` (real: Day 3)
+- [x] **T-049** `write_memory` → calls `appendTrade()`
 
 ### Agent Validation
 - [ ] **T-050** Run `npm run agent -- --nft-id 1`; confirm no crash

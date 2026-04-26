@@ -4,9 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 import { loadPersonality } from "./personality.js";
-import { loadMemory, appendTrade } from "./memory.js";
-import { getPrice } from "./market.js";
-import type { NFTPersonality, TradeMemory, TradeRecord } from "../../0g/schema.js";
+import { handleToolCall } from "./tools.js";
+import type { NFTPersonality } from "../../0g/schema.js";
 
 export interface AgentResult {
   decision: "buy" | "sell" | "hold";
@@ -160,62 +159,6 @@ Your job each cycle:
 Think like a ${personality.style} trader. Be concise in reasoning.`;
 }
 
-async function handleToolCall(
-  name: string,
-  args: Record<string, unknown>,
-  nftId: number,
-  lastTxHash: { value: string | null },
-): Promise<unknown> {
-  switch (name) {
-    case "read_memory": {
-      const [memory, personality] = await Promise.all([
-        loadMemory(nftId),
-        loadPersonality(nftId),
-      ]);
-      return { memory, personality };
-    }
-
-    case "get_market_data": {
-      const token = args["token"] as string;
-      return getPrice(token);
-    }
-
-    case "get_portfolio_balance": {
-      // stub — Day 3 will wire real PortfolioManager
-      return { USDC: "100", ETH: "0.01" };
-    }
-
-    case "read_ens_instructions": {
-      // stub — Day 3 will wire real ENS resolver
-      return null;
-    }
-
-    case "execute_trade": {
-      // stub — Day 3 will wire real PortfolioManager
-      lastTxHash.value = "0xstub";
-      return { txHash: "0xstub" };
-    }
-
-    case "write_memory": {
-      const record: TradeRecord = {
-        timestamp: Date.now(),
-        action: args["action"] as "buy" | "sell" | "hold",
-        tokenIn: args["token_in"] as string,
-        tokenOut: args["token_out"] as string,
-        amountIn: args["amount_in"] as string,
-        amountOut: args["amount_out"] as string,
-        txHash: (args["tx_hash"] as string | undefined) ?? lastTxHash.value,
-        reason: args["reason"] as string,
-        priceAtExecution: args["price_at_execution"] as number,
-      };
-      const newCid = await appendTrade(nftId, record);
-      return { newCid };
-    }
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
 
 export async function runAgent(nftId: number): Promise<AgentResult> {
   const rpcUrl = process.env.RPC_URL;
@@ -271,7 +214,7 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
 
     for (const tc of assistantMessage.tool_calls) {
       const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-      const result = await handleToolCall(tc.function.name, args, nftId, lastTxHash);
+      const result = await handleToolCall(tc.function.name, args, { nftId, lastTxHash });
 
       trace.push({ tool: tc.function.name, args, result });
 
