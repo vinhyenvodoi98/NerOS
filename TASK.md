@@ -43,12 +43,12 @@
   - `getIntelligence(tokenId)` → view
 - [x] **T-021** Write `test/iNFT.test.ts` — mint, updateMemory, access control
 - [x] **T-022** Write `scripts/deploy-inft.ts` → logs address, writes to `deployments.json`
-- [ ] **T-023** Deploy to Sepolia + `npx hardhat verify`
+- [x] **T-023** Deploy to Sepolia + `npx hardhat verify`
 
 ### Day 1 Integration Check
-- [ ] **T-030** Script: upload personality JSON to 0G → call `iNFT.mint(cid, 7)` → log tokenId
-- [ ] **T-031** Read `getIntelligence(1).personalityHash` on-chain, matches uploaded CID
-- [ ] **T-032** Download personality from 0G using on-chain CID — confirm readable JSON
+- [x] **T-030** Script: upload personality JSON to 0G → call `iNFT.mint(cid, 7)` → log tokenId
+- [x] **T-031** Read `getIntelligence(1).personalityHash` on-chain, matches uploaded CID
+- [x] **T-032** Download personality from 0G using on-chain CID — confirm readable JSON
 
 ---
 

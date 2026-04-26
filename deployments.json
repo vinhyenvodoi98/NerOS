@@ -3,5 +3,11 @@
     "address": "0xaf9bbeee0af2d1db428f89eaa9f77bc074d9bea1",
     "network": "sepolia",
     "deployedAt": "2026-04-26T04:42:04.750Z"
+  },
+  "integrationCheck": {
+    "tokenId": "1",
+    "personalityCID": "0x6277469d22e0427b0aecaa4261d259c967097739bfda3232382dc6edf7af4ba0",
+    "mintTx": "0x07f3f33acda1e910deb265325be16fef10eb6cd6d8e2a34ee54b7f54646f54ba",
+    "ranAt": "2026-04-26T05:24:03.567Z"
   }
 }
