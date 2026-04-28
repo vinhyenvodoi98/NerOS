@@ -25,6 +25,19 @@ export default defineConfig({
       type: "edr-simulated",
       chainType: "l1",
     },
+    "mainnet-fork": {
+      type: "edr-simulated",
+      chainType: "l1",
+      ...(process.env.MAINNET_RPC_URL
+        ? {
+            forking: {
+              enabled: true,
+              url: process.env.MAINNET_RPC_URL,
+              blockNumber: 22_000_000,
+            },
+          }
+        : {}),
+    },
     sepolia: {
       type: "http",
       chainType: "l1",

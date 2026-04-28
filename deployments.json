@@ -9,5 +9,10 @@
     "personalityCID": "0x6277469d22e0427b0aecaa4261d259c967097739bfda3232382dc6edf7af4ba0",
     "mintTx": "0x07f3f33acda1e910deb265325be16fef10eb6cd6d8e2a34ee54b7f54646f54ba",
     "ranAt": "2026-04-26T05:24:03.567Z"
+  },
+  "PortfolioManager": {
+    "address": "0xce0f63228e9060ca39138418db3138ce53b05720",
+    "network": "sepolia",
+    "deployedAt": "2026-04-28T15:40:14.505Z"
   }
 }
