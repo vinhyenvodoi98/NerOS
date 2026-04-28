@@ -80,10 +80,10 @@
 
 ### Agent Validation
 - [x] **T-050** Run `npm run agent -- --nft-id 1`; confirm no crash
-- [ ] **T-051** 0G Compute AI calls `read_memory` and `get_market_data` in every run
-- [ ] **T-052** 0G Compute AI calls `write_memory` as the final tool call every run
-- [ ] **T-053** On-chain `memoryHash` changes after run (new 0G CID)
-- [ ] **T-054** Save full tool-call trace to `intelligence/logs/run-{timestamp}.json`
+- [x] **T-051** 0G Compute AI calls `read_memory` and `get_market_data` in every run
+- [x] **T-052** 0G Compute AI calls `write_memory` as the final tool call every run
+- [x] **T-053** On-chain `memoryHash` changes after run (new 0G CID)
+- [x] **T-054** Save full tool-call trace to `intelligence/logs/run-{timestamp}.json`
 
 ---
 

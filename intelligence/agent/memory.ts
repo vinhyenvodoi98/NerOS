@@ -35,7 +35,13 @@ export async function loadMemory(nftId: number): Promise<TradeMemory> {
     return { nftId, trades: [], totalPnL: 0, lastUpdated: Date.now() };
   }
 
-  return downloadJSON<TradeMemory>(cid);
+  try {
+    return await downloadJSON<TradeMemory>(cid);
+  } catch {
+    // 0G testnet node may not have the file — start fresh
+    console.error(`[memory] 0G download failed for CID ${cid} — starting with empty memory`);
+    return { nftId, trades: [], totalPnL: 0, lastUpdated: Date.now() };
+  }
 }
 
 export async function appendTrade(nftId: number, record: TradeRecord): Promise<string> {

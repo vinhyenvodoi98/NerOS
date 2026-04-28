@@ -207,6 +207,12 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
 
     if (!res.ok) {
       const errText = await res.text();
+      // Retry once on rate limit (429) after a 10-second backoff
+      if (res.status === 429) {
+        console.error(`[Agent] Rate limited — waiting 10s before retry`);
+        await new Promise((r) => setTimeout(r, 10_000));
+        continue;
+      }
       throw new Error(`0G Compute request failed (${res.status}): ${errText}`);
     }
 

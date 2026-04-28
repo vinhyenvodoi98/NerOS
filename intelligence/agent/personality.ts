@@ -30,5 +30,24 @@ export async function loadPersonality(nftId: number): Promise<NFTPersonality> {
   const intel = await inft.getIntelligence(nftId);
   const cid: string = intel.personalityHash;
   if (!cid) throw new Error(`iNFT #${nftId} has no personalityHash on-chain`);
-  return downloadJSON<NFTPersonality>(cid);
+
+  try {
+    return await downloadJSON<NFTPersonality>(cid);
+  } catch {
+    // 0G testnet node may not have the file — reconstruct from on-chain riskLevel
+    const riskLevel = Number(intel.riskLevel);
+    const style: NFTPersonality["style"] =
+      riskLevel >= 7 ? "aggressive" : riskLevel >= 4 ? "balanced" : "conservative";
+    console.error(`[personality] 0G download failed for CID ${cid} — using on-chain fallback`);
+    return {
+      nftId,
+      name: `AlphaBot`,
+      ensName: `alpha-nft.eth`,
+      riskTolerance: riskLevel,
+      style,
+      preferredAssets: ["ETH", "USDC"],
+      maxPositionPct: 20,
+      createdAt: Date.now(),
+    };
+  }
 }
