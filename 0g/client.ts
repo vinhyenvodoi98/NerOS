@@ -1,4 +1,4 @@
-import { Indexer, MemData } from "@0gfoundation/0g-ts-sdk";
+import { Indexer, MemData, Downloader } from "@0gfoundation/0g-ts-sdk";
 import { ethers } from "ethers";
 
 const ZG_EVM_RPC = "https://evmrpc-testnet.0g.ai";
@@ -29,7 +29,18 @@ export async function uploadJSON(data: object): Promise<string> {
 
 export async function downloadJSON<T>(rootHash: string): Promise<T> {
   const indexer = new Indexer(indexerUrl());
-  const [blob, err] = await indexer.downloadToBlob(rootHash);
+
+  // indexer_getFileLocations and indexer_getShardedNodes are not available on
+  // the current 0G testnet. Use indexer_getNodeLocations (returns IP map) to
+  // discover nodes, then construct StorageNode URLs with the standard port.
+  const locations = await indexer.getNodeLocations() as unknown as Record<string, unknown>;
+  const ips = Object.keys(locations);
+  if (ips.length === 0) throw new Error("No storage nodes returned by indexer_getNodeLocations");
+
+  const { StorageNode } = await import("@0gfoundation/0g-ts-sdk");
+  const nodes = ips.map((ip) => new StorageNode(`http://${ip}:5678`));
+  const downloader = new Downloader(nodes);
+  const [blob, err] = await downloader.downloadToBlob(rootHash, false);
   if (err) throw err;
 
   return JSON.parse(await blob.text()) as T;

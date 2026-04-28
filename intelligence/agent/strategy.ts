@@ -2,10 +2,15 @@ import "dotenv/config";
 import { ethers } from "ethers";
 import fs from "node:fs";
 import path from "node:path";
-import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
+import { createRequire } from "node:module";
 import { loadPersonality } from "./personality.js";
 import { handleToolCall } from "./tools.js";
 import type { NFTPersonality } from "../../0g/schema.js";
+
+// Force CJS build — the ESM chunks in 0g-serving-broker v0.7.5 are broken
+// (lib.esm/*.js are CJS files but index.mjs imports named exports from them)
+const _require = createRequire(import.meta.url);
+const { createZGComputeNetworkBroker } = _require("@0glabs/0g-serving-broker") as typeof import("@0glabs/0g-serving-broker");
 
 export interface AgentResult {
   decision: "buy" | "sell" | "hold";
@@ -164,15 +169,18 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
   const rpcUrl = process.env.RPC_URL;
   const privateKey = process.env.PRIVATE_KEY;
   const providerAddress = process.env.ZERO_G_PROVIDER_ADDRESS;
+  // 0G EVM testnet — separate from Sepolia. Override via ZERO_G_EVM_RPC if needed.
+  const zgEvmRpc = process.env.ZERO_G_EVM_RPC ?? "https://evmrpc-testnet.0g.ai";
   if (!rpcUrl) throw new Error("RPC_URL not set");
   if (!privateKey) throw new Error("PRIVATE_KEY not set");
   if (!providerAddress) throw new Error("ZERO_G_PROVIDER_ADDRESS not set");
 
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const wallet = new ethers.Wallet(privateKey, provider);
+  // 0G EVM wallet — for the broker (contracts live on 0G network, not Sepolia)
+  const zgProvider = new ethers.JsonRpcProvider(zgEvmRpc);
+  const zgWallet = new ethers.Wallet(privateKey, zgProvider);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const broker = await createZGComputeNetworkBroker(wallet as any);
+  const broker = await createZGComputeNetworkBroker(zgWallet as any);
   const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddress);
 
   const personality = await loadPersonality(nftId);
@@ -231,6 +239,20 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
         content: JSON.stringify(result),
       });
     }
+  }
+
+  // T-051: verify read_memory and get_market_data were called
+  const toolsUsed = new Set(trace.map((r) => r.tool));
+  const requiredTools = ["read_memory", "get_market_data"];
+  const missingTools = requiredTools.filter((t) => !toolsUsed.has(t));
+  if (missingTools.length > 0) {
+    console.warn(`[Agent] WARNING T-051: required tool(s) not called: ${missingTools.join(", ")}`);
+  }
+
+  // T-052: verify write_memory was the final tool call
+  const lastTraceTool = trace[trace.length - 1]?.tool;
+  if (lastTraceTool !== "write_memory") {
+    console.warn(`[Agent] WARNING T-052: last tool was '${lastTraceTool ?? "none"}', expected 'write_memory'`);
   }
 
   // T-054: persist trace log

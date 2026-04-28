@@ -215,7 +215,82 @@ while (true) {
 //       → execute_trade (if BUY/SELL) → write_memory
 ```
 
-#### 2.3 System Prompt (sent to 0G Compute inference)
+#### 2.3 Agent Execution Flow — Network Map
+
+```
+npm run agent -- --nft-id 1
+        │
+        ▼
+cli/commands/agent.ts
+  └─ resolveNftId(1)               [local]
+  └─ runAgent(1)
+        │
+        ├── INIT ─────────────────────────────────────────────────────
+        │
+        │  [0G EVM Testnet]  evmrpc-testnet.0g.ai
+        │    createZGComputeNetworkBroker(zgWallet)
+        │      └─ reads 0G LedgerBroker + ServiceRegistry contracts
+        │    broker.inference.getServiceMetadata(providerAddress)
+        │      └─ returns: endpoint URL + model name
+        │
+        │  [Sepolia]  RPC_URL
+        │    loadPersonality(nftId)
+        │      └─ iNFT.getIntelligence(1)  → personalityHash (0G CID)
+        │      [0G Storage]  ZERO_G_RPC
+        │        └─ downloadJSON(cid)  → NFTPersonality object
+        │
+        ├── TOOL-USE LOOP (repeats until finish_reason = "stop") ────
+        │
+        │  [0G Compute]  endpoint/chat/completions
+        │    broker.inference.getRequestHeaders()  ← billing headers
+        │    POST /chat/completions  { messages, tools, tool_choice }
+        │      └─ AI returns: tool_calls[] or finish_reason="stop"
+        │
+        │  For each tool_call the AI requests:
+        │
+        │  ● read_memory
+        │    [Sepolia]     iNFT.getIntelligence(1) → memoryHash
+        │    [0G Storage]  downloadJSON(memoryHash) → TradeMemory
+        │
+        │  ● get_market_data
+        │    [CoinGecko API]  price / change24h / volume
+        │
+        │  ● get_portfolio_balance
+        │    [stub → Day 3: Sepolia PortfolioManager.getBalance()]
+        │
+        │  ● read_ens_instructions
+        │    [stub → Day 3: Sepolia ENS resolver getText()]
+        │
+        │  ● execute_trade
+        │    [stub → Day 3: Sepolia Uniswap V3 via PortfolioManager]
+        │
+        │  ● write_memory  (always the final tool call)
+        │    [0G Storage]  uploadJSON(memory)      → newCid
+        │    [Sepolia]     iNFT.updateMemory(1, newCid)  → tx confirmed
+        │
+        │    ↑ tool result sent back to AI → loop continues
+        │
+        ├── POST-LOOP ────────────────────────────────────────────────
+        │
+        │  [local]  validate T-051/T-052 (warn if violated)
+        │  [local]  write intelligence/logs/run-{ts}.json
+        │
+        └── return { decision, reason, txHash, trace }
+              ▼
+        cli/commands/agent.ts  prints trace + decision to terminal
+```
+
+**Network summary:**
+
+| Network | Purpose | Env var |
+|---|---|---|
+| 0G EVM Testnet | broker init, billing headers | `ZERO_G_EVM_RPC` (default: `evmrpc-testnet.0g.ai`) |
+| 0G Compute | AI inference (`/chat/completions`) | `ZERO_G_PROVIDER_ADDRESS` |
+| 0G Storage | upload/download JSON (personality, memory) | `ZERO_G_RPC`, `ZERO_G_PRIVATE_KEY` |
+| Sepolia | iNFT contract (`getIntelligence`, `updateMemory`) | `RPC_URL`, `PRIVATE_KEY` |
+| CoinGecko | market prices | no key needed |
+
+#### 2.4 System Prompt (sent to 0G Compute inference)
 ```
 You are the autonomous AI brain of iNFT #{id}, named {name}.
 Personality: {style}, risk level {riskLevel}/10.
@@ -231,7 +306,7 @@ If owner sent ENS instructions, prioritize them.
 
 #### 2.4 Checkpoint
 - `npm run agent -- --nft-id 1` runs, shows all tool calls streaming in Ink
-- Claude calls `write_memory` every run
+- 0G Compute AI calls `write_memory` every run
 - 0G CID changes on-chain after run
 
 ---
@@ -324,7 +399,7 @@ contract KeeperAdapter {
 
 **Commands** (all in `cli/commands/`):
 - `mint.ts` — interactive personality setup, uploads to 0G, mints NFT
-- `agent.ts` — renders Ink app, streams Claude tool calls live
+- `agent.ts` — renders Ink app, streams 0G Compute AI tool calls live
 - `history.ts` — reads 0G memory, prints trade table with P&L column
 - `send-instruction.ts` — writes ENS text record, confirms
 - `watch.ts` — keeper watcher, shows countdown + auto-triggers agent
@@ -345,7 +420,7 @@ contract KeeperAdapter {
 - All txHash values point to real Sepolia transactions
 
 #### 5.2 CLI Polish
-- Stream Claude's reasoning text as it arrives (not after)
+- Stream 0G Compute AI's reasoning text as it arrives (not after)
 - `npm run history` → color P&L: green positive, red negative
 - `npm run watch` → countdown timer to next Keeper run
 - All Etherscan + 0G explorer links are clickable (OSC 8 hyperlinks in terminal)
@@ -383,6 +458,6 @@ contract KeeperAdapter {
 | Must | Real Uniswap tx + 0G memory update visible in one agent cycle |
 | Must | 0G is critical path (personality + memory — not optional decoration) |
 | Must | Ink CLI shows tool-use trace streaming live |
-| Nice | ENS instruction visibly changes Claude's next decision |
+| Nice | ENS instruction visibly changes 0G Compute AI's next decision |
 | Nice | P&L shows positive returns |
 | Stretch | Two iNFTs with different personalities running in split terminal |

@@ -79,9 +79,9 @@
 - [x] **T-049** `write_memory` → calls `appendTrade()`
 
 ### Agent Validation
-- [ ] **T-050** Run `npm run agent -- --nft-id 1`; confirm no crash
-- [ ] **T-051** Claude calls `read_memory` and `get_market_data` in every run
-- [ ] **T-052** Claude calls `write_memory` as the final tool call every run
+- [x] **T-050** Run `npm run agent -- --nft-id 1`; confirm no crash
+- [ ] **T-051** 0G Compute AI calls `read_memory` and `get_market_data` in every run
+- [ ] **T-052** 0G Compute AI calls `write_memory` as the final tool call every run
 - [ ] **T-053** On-chain `memoryHash` changes after run (new 0G CID)
 - [ ] **T-054** Save full tool-call trace to `intelligence/logs/run-{timestamp}.json`
 
@@ -116,7 +116,7 @@
   - `clearInstruction(ensName, wallet)` → `resolver.setText(..., "")`
 - [ ] **T-072** Replace `read_ens_instructions` stub with real ENS read
 - [ ] **T-073** After agent processes instruction, call `clearInstruction()`
-- [ ] **T-074** Test: set text record "be very conservative" → run agent → Claude uses it in reasoning
+- [ ] **T-074** Test: set text record "be very conservative" → run agent → 0G Compute AI uses it in reasoning
 
 ### Day 3 Integration Check
 - [ ] **T-080** Full E2E: `npm run agent` → 6 real tool calls → real Uniswap swap → 0G memory updated
@@ -150,7 +150,7 @@
 - [ ] **T-102** `cli/components/Decision.tsx`:
   ```
   ─────────────────────────────────────────────────────────
-  {Claude's one-sentence reasoning streamed live}
+  {0G Compute AI's one-sentence reasoning streamed live}
   [BUY]  tx: 0x4a3f...c291  ↗ Etherscan        ← green badge
   [SELL] tx: ...                                 ← red badge
   [HOLD]                                         ← gray badge
@@ -167,7 +167,7 @@
 - [ ] **T-105** `cli/commands/agent.ts`:
   - Parse `--nft-id` flag (commander)
   - Start Ink `<App>`, render Header
-  - Stream Claude tool calls → update ToolRow components in real time
+  - Stream 0G Compute AI tool calls → update ToolRow components in real time
   - On finish: render Decision component
 - [ ] **T-106** `cli/commands/history.ts`:
   - Load `TradeMemory` from 0G
@@ -200,7 +200,7 @@
 - [ ] **T-123** Fund demo wallet: 0.5 ETH + 200 USDC on Sepolia
 
 ### CLI Polish
-- [ ] **T-130** Stream Claude's reasoning text token-by-token as it arrives (not buffered)
+- [ ] **T-130** Stream 0G Compute AI's reasoning text token-by-token as it arrives (not buffered)
 - [ ] **T-131** OSC 8 terminal hyperlinks for Etherscan + 0G explorer URLs (clickable in iTerm2/VS Code terminal)
 - [ ] **T-132** `npm run watch` shows live countdown timer: `Next trigger in 4m 32s`
 - [ ] **T-133** `npm run agent -- --force` flag: bypass Keeper INTERVAL check, run immediately (demo fallback)
