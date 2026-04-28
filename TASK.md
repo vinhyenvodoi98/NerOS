@@ -90,27 +90,27 @@
 ## DAY 3 — DeFi + ENS Integration
 
 ### PortfolioManager Contract
-- [ ] **T-060** Write `contracts/PortfolioManager.sol` (see PLAN.md §3.1):
+- [x] **T-060** Write `contracts/PortfolioManager.sol` (see PLAN.md §3.1):
   - `executeTrade(nftId, tokenIn, tokenOut, amountIn, amountOutMin, poolFee)` → `ISwapRouter.exactInputSingle()`
   - `getBalance(nftId, token)` → view
   - `onlyAuthorized` modifier (agent wallet + KeeperAdapter)
   - Reverts if `amountOutMin == 0`
   - Emits `TradeExecuted(nftId, tokenIn, tokenOut, amountIn, amountOut)`
-- [ ] **T-061** `contracts/interfaces/IPortfolioManager.sol`
-- [ ] **T-062** `test/PortfolioManager.test.ts` — Hardhat mainnet fork, real Uniswap pool
-- [ ] **T-063** Deploy `PortfolioManager.sol` to Sepolia + verify
-- [ ] **T-064** Fund portfolio contract: 0.1 ETH + 100 USDC on Sepolia
+- [x] **T-061** `contracts/interfaces/IPortfolioManager.sol`
+- [x] **T-062** `test/PortfolioManager.test.ts` — Hardhat mainnet fork, real Uniswap pool
+- [x] **T-063** Deploy `PortfolioManager.sol` to Sepolia + verify
+- [x] **T-064** Fund portfolio contract: 0.1 ETH + 100 USDC on Sepolia
 
 ### Uniswap Wiring
-- [ ] **T-065** Replace `execute_trade` stub with real handler:
+- [x] **T-065** Replace `execute_trade` stub with real handler:
   - Calculate `amountOutMin` from CoinGecko price with 0.5% slippage
   - Call `PortfolioManager.executeTrade()` via ethers
   - Await tx confirmation, return `{ txHash, amountOut }`
 - [ ] **T-066** Run agent, confirm real swap tx appears on Sepolia Etherscan
-- [ ] **T-067** Replace `get_portfolio_balance` stub: call `PortfolioManager.getBalance()`
+- [x] **T-067** Replace `get_portfolio_balance` stub: call `PortfolioManager.getBalance()`
 
 ### ENS Integration
-- [ ] **T-070** Register ENS name (e.g. `alphabot.eth`) on Sepolia ENS testnet
+- [ ] **T-070** Register ENS name (e.g. `nerosbot.eth`) on Sepolia ENS testnet
 - [ ] **T-071** `intelligence/agent/ens.ts`:
   - `readInstruction(ensName)` → `resolver.getText("inft.instruction")`
   - `clearInstruction(ensName, wallet)` → `resolver.setText(..., "")`
