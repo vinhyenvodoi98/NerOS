@@ -15,12 +15,33 @@ export interface ToolContext {
   pendingEnsInstruction: { value: string | null };
 }
 
-// Sepolia token config — address + ERC-20 decimals
-const SEPOLIA_TOKENS: Record<string, { address: string; decimals: number }> = {
-  WETH: { address: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", decimals: 18 },
-  ETH:  { address: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", decimals: 18 }, // WETH on Sepolia
-  USDC: { address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6 },
-};
+// Load token config — prefers MockUSD/MockETH from deployments.json (set by deploy-mock-tokens)
+// Falls back to real Sepolia WETH/USDC when mock tokens are not deployed.
+function loadTokenConfig(): { tokens: Record<string, { address: string; decimals: number }>; isMock: boolean } {
+  try {
+    const deps = JSON.parse(fs.readFileSync(path.resolve("deployments.json"), "utf8")) as Record<string, { address: string }>;
+    if (deps.MockUSD?.address && deps.MockETH?.address) {
+      return {
+        isMock: true,
+        tokens: {
+          WETH: { address: deps.MockETH.address, decimals: 18 },
+          ETH:  { address: deps.MockETH.address, decimals: 18 },
+          USDC: { address: deps.MockUSD.address, decimals: 18 },
+        },
+      };
+    }
+  } catch { /* fall through */ }
+  return {
+    isMock: false,
+    tokens: {
+      WETH: { address: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", decimals: 18 },
+      ETH:  { address: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", decimals: 18 },
+      USDC: { address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6 },
+    },
+  };
+}
+
+const { tokens: SEPOLIA_TOKENS, isMock: IS_MOCK_POOL } = loadTokenConfig();
 
 const PORTFOLIO_MANAGER_ABI = [
   "function executeTrade(uint256 nftId, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint24 poolFee) external returns (uint256 amountOut)",
@@ -71,8 +92,8 @@ async function handleGetPortfolioBalance(nftId: number) {
   ]);
 
   return {
-    ETH:  ethers.formatUnits(wethBalance, 18),
-    USDC: ethers.formatUnits(usdcBalance, 6),
+    ETH:  ethers.formatUnits(wethBalance, SEPOLIA_TOKENS.WETH.decimals),
+    USDC: ethers.formatUnits(usdcBalance, SEPOLIA_TOKENS.USDC.decimals),
   };
 }
 
@@ -111,18 +132,23 @@ async function handleExecuteTrade(
     tokenInCfg.decimals,
   );
 
-  // Calculate amountOutMin: expected output minus 0.5% slippage
-  const [priceIn, priceOut] = await Promise.all([
-    getPrice(tokenInKey === "WETH" ? "ETH" : tokenInKey),
-    getPrice(tokenOutKey === "WETH" ? "ETH" : tokenOutKey),
-  ]);
-  const amountInUsd        = amountInHuman * priceIn.price;
-  const expectedOutHuman   = amountInUsd / priceOut.price;
-  const slippedOutHuman    = expectedOutHuman * 0.995;
-  const amountOutMin = ethers.parseUnits(
-    slippedOutHuman.toFixed(tokenOutCfg.decimals),
-    tokenOutCfg.decimals,
-  );
+  // Mock pool uses 1:1 price — CoinGecko-based slippage would reject sell-direction swaps.
+  // Use amountOutMin=1 on testnet mock pools; real pools keep the 0.5% guard.
+  let amountOutMin: bigint;
+  if (IS_MOCK_POOL) {
+    amountOutMin = 1n;
+  } else {
+    const [priceIn, priceOut] = await Promise.all([
+      getPrice(tokenInKey === "WETH" ? "ETH" : tokenInKey),
+      getPrice(tokenOutKey === "WETH" ? "ETH" : tokenOutKey),
+    ]);
+    const amountInUsd      = amountInHuman * priceIn.price;
+    const expectedOutHuman = amountInUsd / priceOut.price;
+    amountOutMin = ethers.parseUnits(
+      (expectedOutHuman * 0.995).toFixed(tokenOutCfg.decimals),
+      tokenOutCfg.decimals,
+    );
+  }
 
   if (!process.env.RPC_URL)    throw new Error("RPC_URL not set");
   if (!process.env.PRIVATE_KEY) throw new Error("PRIVATE_KEY not set");

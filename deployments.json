@@ -14,5 +14,14 @@
     "address": "0xce0f63228e9060ca39138418db3138ce53b05720",
     "network": "sepolia",
     "deployedAt": "2026-04-28T15:40:14.505Z"
+  },
+  "MockUSD": {
+    "address": "0x3839074b9e4f17905c2ba76c07e20eb566cab59e"
+  },
+  "MockETH": {
+    "address": "0x451a2b7f6c1890dcd76223723932fe255ba1d7df"
+  },
+  "mockSetup": {
+    "minted": true
   }
 }

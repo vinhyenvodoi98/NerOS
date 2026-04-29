@@ -46,9 +46,12 @@ cp .env.example .env
 |---|---|
 | `PRIVATE_KEY` | Deployer / agent wallet private key |
 | `RPC_URL` | Sepolia RPC (e.g. from Alchemy or Infura) |
+| `MAINNET_RPC_URL` | Mainnet RPC — required for ENS text-record reads/writes |
 | `ZERO_G_PROVIDER_ADDRESS` | 0G Compute provider address |
 | `ZERO_G_RPC` | 0G Storage indexer endpoint |
 | `ZERO_G_PRIVATE_KEY` | 0G Storage signer (defaults to `PRIVATE_KEY` if not set) |
+| `ENS_NAME` | ENS name owned by your wallet (e.g. `nerosbot.eth`) |
+| `ENS_RESOLVER` | ENS Public Resolver address on Sepolia (if name is on Sepolia ENS testnet) |
 
 ---
 
@@ -91,7 +94,27 @@ Transferring 2 0G to create inference sub-account...
 ✓ 0G Compute account setup complete. Run: npm run agent -- --nft-id 1
 ```
 
-### Step 4 — Mint your iNFT
+### Step 4 — Deploy mock tokens and fund the portfolio (Sepolia testnet)
+
+Real Sepolia USDC and WETH are difficult to obtain. Instead, deploy two mock ERC-20 tokens, create a Uniswap V3 pool for them, and seed the `PortfolioManager` — all in one command:
+
+```bash
+npm run deploy-mock
+```
+
+What it does:
+1. Redeploys `PortfolioManager` with the correct **Sepolia SwapRouter** (`0x3bFA4769...`)
+2. Deploys `MockUSD` (mUSD, 18 dec) and `MockETH` (mETH, 18 dec)
+3. Creates a Uniswap V3 0.3% pool at a 1:1 price ratio
+4. Adds 50,000 of each token as full-range liquidity
+5. Deposits **1,000 mUSD + 1,000 mETH** into the `PortfolioManager` for nftId=1
+6. Writes all addresses into `deployments.json`
+
+After this the agent automatically picks up the mock token addresses — no further config needed.
+
+> **Note:** The pool is initialized at 1:1. The agent still uses real CoinGecko prices for BUY/SELL decisions; `amountOutMin` is set to `1 wei` for the mock pool so swaps succeed in both directions on testnet.
+
+### Step 5 — Mint your iNFT
 
 ```bash
 npm run mint
@@ -99,7 +122,7 @@ npm run mint
 
 This uploads the NFT personality JSON to 0G Storage and mints the iNFT on Sepolia.
 
-### Step 5 — Run the agent
+### Step 6 — Run the agent
 
 ```bash
 npm run agent -- --nft-id 1
@@ -107,12 +130,14 @@ npm run agent -- --nft-id 1
 
 The agent will:
 1. Load personality from 0G Storage (or reconstruct from on-chain data if unavailable)
-2. Call the 0G Compute AI in a tool-use loop
-3. Fetch market data from CoinGecko
-4. Make a BUY / SELL / HOLD decision
-5. Execute a trade stub (real Uniswap in Day 3)
-6. Write the trade record to 0G Storage and update the on-chain `memoryHash`
-7. Save a full trace to `intelligence/logs/run-{timestamp}.json`
+2. Read any pending ENS instruction (`inft.instruction` text record on `nerosbot.eth`)
+3. Call the 0G Compute AI in a tool-use loop
+4. Fetch market data from CoinGecko
+5. Make a BUY / SELL / HOLD decision
+6. Execute a real Uniswap V3 swap via `PortfolioManager`
+7. Clear the ENS instruction after it is processed
+8. Write the trade record to 0G Storage and update the on-chain `memoryHash`
+9. Save a full trace to `intelligence/logs/run-{timestamp}.json`
 
 ---
 
@@ -124,7 +149,7 @@ Terminal A                                  Terminal B
 $ npm run mint                              $ npm run watch -- --nft-id 1
   ✓ Personality uploaded → 0G                [Keeper] Listening for triggers...
   ✓ iNFT #1 minted · tx: 0x...
-  ✓ ENS: alpha-nft.eth assigned
+  ✓ ENS: nerosbot.eth assigned
 
 $ npm run agent -- --nft-id 1
   ─── Tool Call Trace ─────────────────       [Keeper] Triggered at 14:23:05
@@ -153,11 +178,16 @@ $ npm run history -- --nft-id 1         # table of all trades + P&L
 npm install                                                    # install deps
 npx hardhat compile                                            # compile contracts
 npx hardhat test                                               # run tests
-npx hardhat run scripts/deploy-inft.ts --network sepolia       # deploy iNFT
 
-npx tsx --tsconfig tsconfig.cli.json scripts/setup-0g-account.ts  # ONE-TIME: fund 0G account
+# ── Deploy ────────────────────────────────────────────────────────────────────
+npx hardhat run scripts/deploy-inft.ts --network sepolia       # deploy iNFT contract
+npm run deploy-mock                                            # deploy mock tokens + Uniswap pool + fund PM
 
-npm run mint                                                   # mint iNFT, upload personality
+# ── One-time setup ────────────────────────────────────────────────────────────
+npx tsx --tsconfig tsconfig.cli.json scripts/setup-0g-account.ts  # fund 0G Compute account
+
+# ── Demo commands ─────────────────────────────────────────────────────────────
+npm run mint                                                   # mint iNFT, upload personality to 0G
 npm run agent -- --nft-id 1                                    # run one decision cycle
 npm run history -- --nft-id 1                                  # print trade history from 0G
 npm run send-instruction -- --nft-id 1 "be conservative"       # write ENS instruction
@@ -167,6 +197,20 @@ npm run watch -- --nft-id 1                                    # keeper watcher,
 ---
 
 ## Known Issues
+
+**`PM: insufficient balance` on `npm run agent`.**
+The `PortfolioManager` has no tokens for nftId=1 yet. Run `npm run deploy-mock` first — it deposits 1,000 mUSD and 1,000 mETH.
+
+**`npm run deploy-mock` fails at pool creation / liquidity step.**
+This means the Uniswap V3 contracts at the addresses in the script are not deployed on your fork of Sepolia. The script uses the official Uniswap v3-periphery addresses (`deploys.md` — same as mainnet/testnets). Verify that `0x1F98431c8aD98523631AE4a59f267346ea31F984` (Factory) is live on Sepolia via [Sepolia Etherscan](https://sepolia.etherscan.io).
+
+**`No ENS resolver found for nerosbot.eth`.**
+This means `MAINNET_RPC_URL` is pointing to Sepolia, or the name is on Sepolia ENS and `ENS_RESOLVER` is not set. Set both in `.env`:
+```
+ENS_NAME=nerosbot.eth
+ENS_RESOLVER=0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5   # Sepolia Public Resolver
+MAINNET_RPC_URL=https://eth.drpc.org
+```
 
 **`setup-0g-account` must be run before the first `npm run agent`.**
 If you see this error:
