@@ -110,12 +110,12 @@
 - [x] **T-067** Replace `get_portfolio_balance` stub: call `PortfolioManager.getBalance()`
 
 ### ENS Integration
-- [ ] **T-070** Register ENS name (e.g. `nerosbot.eth`) on Sepolia ENS testnet
-- [ ] **T-071** `intelligence/agent/ens.ts`:
+- [x] **T-070** Register ENS name (e.g. `nerosbot.eth`) on Sepolia ENS testnet
+- [x] **T-071** `intelligence/agent/ens.ts`:
   - `readInstruction(ensName)` → `resolver.getText("inft.instruction")`
   - `clearInstruction(ensName, wallet)` → `resolver.setText(..., "")`
-- [ ] **T-072** Replace `read_ens_instructions` stub with real ENS read
-- [ ] **T-073** After agent processes instruction, call `clearInstruction()`
+- [x] **T-072** Replace `read_ens_instructions` stub with real ENS read
+- [x] **T-073** After agent processes instruction, call `clearInstruction()`
 - [ ] **T-074** Test: set text record "be very conservative" → run agent → 0G Compute AI uses it in reasoning
 
 ### Day 3 Integration Check

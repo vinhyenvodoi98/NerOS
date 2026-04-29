@@ -41,8 +41,8 @@ export async function loadPersonality(nftId: number): Promise<NFTPersonality> {
     console.error(`[personality] 0G download failed for CID ${cid} — using on-chain fallback`);
     return {
       nftId,
-      name: `AlphaBot`,
-      ensName: `alpha-nft.eth`,
+      name: `NerOSBot`,
+      ensName: process.env.ENS_NAME ?? `nerosbot.eth`,
       riskTolerance: riskLevel,
       style,
       preferredAssets: ["ETH", "USDC"],

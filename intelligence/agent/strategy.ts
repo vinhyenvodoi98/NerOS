@@ -5,6 +5,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { loadPersonality } from "./personality.js";
 import { handleToolCall } from "./tools.js";
+import { clearInstruction } from "./ens.js";
 import type { NFTPersonality } from "../../0g/schema.js";
 
 // Force CJS build — the ESM chunks in 0g-serving-broker v0.7.5 are broken
@@ -192,6 +193,8 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
 
   const trace: ToolCallRecord[] = [];
   const lastTxHash: { value: string | null } = { value: null };
+  const pendingEnsInstruction: { value: string | null } = { value: null };
+  const ensName = process.env.ENS_NAME ?? personality.ensName;
   let decision: "buy" | "sell" | "hold" = "hold";
   let finalReason = "No decision recorded";
 
@@ -228,7 +231,7 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
 
     for (const tc of assistantMessage.tool_calls) {
       const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-      const result = await handleToolCall(tc.function.name, args, { nftId, lastTxHash });
+      const result = await handleToolCall(tc.function.name, args, { nftId, ensName, lastTxHash, pendingEnsInstruction });
 
       trace.push({ tool: tc.function.name, args, result });
 
@@ -245,6 +248,11 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
         content: JSON.stringify(result),
       });
     }
+  }
+
+  // T-073: clear ENS instruction after agent processes it — runs on mainnet via ens.ts
+  if (pendingEnsInstruction.value) {
+    await clearInstruction(ensName, privateKey);
   }
 
   // T-051: verify read_memory and get_market_data were called

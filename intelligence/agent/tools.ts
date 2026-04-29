@@ -5,11 +5,14 @@ import path from "node:path";
 import { loadMemory, appendTrade } from "./memory.js";
 import { loadPersonality } from "./personality.js";
 import { getPrice } from "./market.js";
+import { readInstruction } from "./ens.js";
 import type { TradeRecord } from "../../0g/schema.js";
 
 export interface ToolContext {
   nftId: number;
+  ensName: string;
   lastTxHash: { value: string | null };
+  pendingEnsInstruction: { value: string | null };
 }
 
 // Sepolia token config — address + ERC-20 decimals
@@ -73,9 +76,11 @@ async function handleGetPortfolioBalance(nftId: number) {
   };
 }
 
-// T-047: read_ens_instructions — stub until Day 3 (ENS resolver)
-function handleReadEnsInstructions() {
-  return null;
+// T-072: read_ens_instructions — real ENS read from mainnet
+async function handleReadEnsInstructions(ctx: ToolContext) {
+  const instruction = await readInstruction(ctx.ensName);
+  if (instruction) ctx.pendingEnsInstruction.value = instruction;
+  return instruction;
 }
 
 // T-065: execute_trade — real Uniswap V3 swap via PortfolioManager
@@ -190,7 +195,7 @@ export async function handleToolCall(
       return handleGetPortfolioBalance(ctx.nftId);
 
     case "read_ens_instructions":
-      return handleReadEnsInstructions();
+      return handleReadEnsInstructions(ctx);
 
     case "execute_trade":
       return handleExecuteTrade(args, ctx.lastTxHash);
