@@ -18,9 +18,10 @@ import { parseEther, erc20Abi } from "viem";
 import fs from "node:fs";
 import path from "node:path";
 
-// ── Uniswap V3 addresses (same across Mainnet + official testnets) ────────────
-const UNISWAP_FACTORY  = "0x1F98431c8aD98523631AE4a59f267346ea31F984" as const;
-const POSITION_MANAGER = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88" as const;
+// ── Uniswap V3 addresses — Sepolia-specific deployment ───────────────────────
+// Source: https://developers.uniswap.org/contracts/v3/reference/deployments/ethereum-deployments
+const UNISWAP_FACTORY  = "0x0227628f3F023bb0B980b67D528571c95c6DaC1c" as const;
+const POSITION_MANAGER = "0x1238536071E1c677A632429e3655c799b22cDA52" as const;
 
 const POOL_FEE   = 3000;
 const TICK_LOWER = -887220;

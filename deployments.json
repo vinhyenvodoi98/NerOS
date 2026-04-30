@@ -22,6 +22,14 @@
     "address": "0x451a2b7f6c1890dcd76223723932fe255ba1d7df"
   },
   "mockSetup": {
-    "minted": true
+    "minted": true,
+    "liquidityAdded": true,
+    "depositsComplete": true
+  },
+  "UniswapPool": {
+    "address": "0xA6e939313E0D3Ce3C06b89373D448799a85AA521",
+    "token0": "0x3839074b9e4f17905c2ba76c07e20eb566cab59e",
+    "token1": "0x451a2b7f6c1890dcd76223723932fe255ba1d7df",
+    "fee": 3000
   }
 }
