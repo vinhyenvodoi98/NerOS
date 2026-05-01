@@ -165,9 +165,9 @@ Your job each cycle:
 2. Call get_market_data for relevant tokens.
 3. Call get_portfolio_balance to know your exact token balances before making any trade decision.
 4. Optionally call read_ens_instructions for human overrides.
-5. Decide: buy, sell, or hold. When trading, amount_in MUST be ≤ the balance shown by get_portfolio_balance.
+5. Decide: buy, sell, or hold. When trading, amount_in MUST be ≤ the balance shown by get_portfolio_balance AND must not exceed ${personality.riskTolerance * 10}% of that balance (on-chain contract limit: riskLevel ${personality.riskTolerance} × 10%). If execute_trade returns an error, reduce amount_in and retry.
 6. If trading, call execute_trade.
-7. ALWAYS call write_memory last to record the decision.
+7. ALWAYS call write_memory last (after execute_trade) to record the final decision with the real txHash.
 
 Think like a ${personality.style} trader. Be concise in reasoning.`;
 }
@@ -238,7 +238,12 @@ export async function runAgent(nftId: number, poolConfig?: PoolConfig): Promise<
 
     for (const tc of assistantMessage.tool_calls) {
       const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-      const result = await handleToolCall(tc.function.name, args, { nftId, ensName, lastTxHash, pendingEnsInstruction, poolConfig });
+      let result: unknown;
+      try {
+        result = await handleToolCall(tc.function.name, args, { nftId, ensName, lastTxHash, pendingEnsInstruction, poolConfig });
+      } catch (err) {
+        result = { error: err instanceof Error ? err.message : String(err) };
+      }
 
       trace.push({ tool: tc.function.name, args, result });
 

@@ -106,7 +106,7 @@
   - Calculate `amountOutMin` from CoinGecko price with 0.5% slippage
   - Call `PortfolioManager.executeTrade()` via ethers
   - Await tx confirmation, return `{ txHash, amountOut }`
-- [ ] **T-066** Run agent, confirm real swap tx appears on Sepolia Etherscan
+- [x] **T-066** Run agent, confirm real swap tx appears on Sepolia Etherscan
 - [x] **T-067** Replace `get_portfolio_balance` stub: call `PortfolioManager.getBalance()`
 
 ### ENS Integration
@@ -119,9 +119,9 @@
 - [ ] **T-074** Test: set text record "be very conservative" → run agent → 0G Compute AI uses it in reasoning
 
 ### Day 3 Integration Check
-- [ ] **T-080** Full E2E: `npm run agent` → 6 real tool calls → real Uniswap swap → 0G memory updated
-- [ ] **T-081** `npm run send-instruction -- "sell everything"` → ENS updated → next agent run responds
-- [ ] **T-082** Trade record in 0G log has real `txHash` (not "0xstub")
+- [x] **T-080** Full E2E: `npm run agent` → 6 real tool calls → real Uniswap swap → 0G memory updated
+- [x] **T-081** `npm run send-instruction -- "sell everything"` → ENS updated → next agent run responds
+- [x] **T-082** Trade record in 0G log has real `txHash` (not "0xstub")
 
 ---
 
