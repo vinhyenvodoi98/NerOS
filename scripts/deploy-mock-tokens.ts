@@ -26,11 +26,26 @@ const POSITION_MANAGER = "0x1238536071E1c677A632429e3655c799b22cDA52" as const;
 const POOL_FEE   = 3000;
 const TICK_LOWER = -887220;
 const TICK_UPPER =  887220;
-const SQRT_PRICE_1_1 = 79228162514264337593543950336n;
 
-const NFT_ID    = 1n;
-const LIQUIDITY = parseEther("50000");
-const DEPOSIT   = parseEther("1000");
+// Target price: 1 MockETH = 2000 MockUSD
+// sqrtPriceX96 = sqrt(price) * 2^96, where price = token1 / token0 in raw units.
+// Token ordering is determined by address sort, so we compute both sides and pick at runtime.
+function bigIntSqrt(value: bigint): bigint {
+  if (value < 2n) return value;
+  let x = value;
+  let y = (x + 1n) / 2n;
+  while (y < x) { x = y; y = (x + value / x) / 2n; }
+  return x;
+}
+// price = 1/2000  → mockUSD is token0, mockETH is token1
+const SQRT_PRICE_USD0_ETH1 = bigIntSqrt(2n ** 192n / 2000n);
+// price = 2000    → mockETH is token0, mockUSD is token1
+const SQRT_PRICE_ETH0_USD1 = bigIntSqrt(2n ** 192n * 2000n);
+
+const NFT_ID      = 1n;
+const LIQUIDITY   = parseEther("50000");
+const DEPOSIT_USD = parseEther("200000");  // 200,000 mUSD  ≈ $200k
+const DEPOSIT_ETH = parseEther("100");     // 100 mETH      ≈ $200k at 1 mETH = 2000 mUSD
 
 // ── Hardhat viem setup ───────────────────────────────────────────────────────
 const { viem } = await network.create("sepolia");
@@ -121,10 +136,11 @@ if (deps.mockSetup?.minted) {
   console.log("\n[2/5] Tokens already minted — skipping.");
 } else {
   console.log("\n[2/5] Minting tokens to deployer...");
-  const totalMint = LIQUIDITY + DEPOSIT + parseEther("500");
-  await wait(await mockUSD.write.mint([deployer.account.address, totalMint]));
-  await wait(await mockETH.write.mint([deployer.account.address, totalMint]));
-  console.log(`  ✓ Minted ${totalMint / 10n ** 18n} of each token`);
+  const totalMintUSD = LIQUIDITY + DEPOSIT_USD + parseEther("500");
+  const totalMintETH = LIQUIDITY + DEPOSIT_ETH + parseEther("10");
+  await wait(await mockUSD.write.mint([deployer.account.address, totalMintUSD]));
+  await wait(await mockETH.write.mint([deployer.account.address, totalMintETH]));
+  console.log(`  ✓ Minted ${totalMintUSD / 10n ** 18n} mUSD, ${totalMintETH / 10n ** 18n} mETH`);
   deps.mockSetup = { ...deps.mockSetup, minted: true };
   save();
 }
@@ -149,11 +165,15 @@ if (deps.UniswapPool?.address) {
   }) as `0x${string}`;
   console.log(`  Pool: ${poolAddress}`);
 
+  const sqrtPrice = token0.toLowerCase() === mockUSD.address.toLowerCase()
+    ? SQRT_PRICE_USD0_ETH1   // mockUSD=token0, mockETH=token1 → price = 1/2000
+    : SQRT_PRICE_ETH0_USD1;  // mockETH=token0, mockUSD=token1 → price = 2000
+
   await wait(await deployer.writeContract({
     address: poolAddress, abi: POOL_ABI,
-    functionName: "initialize", args: [SQRT_PRICE_1_1],
+    functionName: "initialize", args: [sqrtPrice],
   }));
-  console.log("  ✓ Pool initialized at 1:1 price");
+  console.log("  ✓ Pool initialized at 1 MockETH = 2000 MockUSD");
   deps.UniswapPool = { address: poolAddress, token0, token1, fee: POOL_FEE };
   save();
 }
@@ -197,23 +217,23 @@ if (deps.mockSetup?.depositsComplete) {
 
   await wait(await deployer.writeContract({
     address: mockUSD.address, abi: erc20Abi, functionName: "approve",
-    args: [pmAddress, DEPOSIT],
+    args: [pmAddress, DEPOSIT_USD],
   }));
   await wait(await deployer.writeContract({
     address: pmAddress, abi: PM_DEPOSIT_ABI, functionName: "deposit",
-    args: [NFT_ID, mockUSD.address, DEPOSIT],
+    args: [NFT_ID, mockUSD.address, DEPOSIT_USD],
   }));
-  console.log("  ✓ Deposited 1000 mUSD");
+  console.log("  ✓ Deposited 200,000 mUSD");
 
   await wait(await deployer.writeContract({
     address: mockETH.address, abi: erc20Abi, functionName: "approve",
-    args: [pmAddress, DEPOSIT],
+    args: [pmAddress, DEPOSIT_ETH],
   }));
   await wait(await deployer.writeContract({
     address: pmAddress, abi: PM_DEPOSIT_ABI, functionName: "deposit",
-    args: [NFT_ID, mockETH.address, DEPOSIT],
+    args: [NFT_ID, mockETH.address, DEPOSIT_ETH],
   }));
-  console.log("  ✓ Deposited 1000 mETH");
+  console.log("  ✓ Deposited 100 mETH");
   deps.mockSetup = { ...deps.mockSetup, depositsComplete: true };
   save();
 }

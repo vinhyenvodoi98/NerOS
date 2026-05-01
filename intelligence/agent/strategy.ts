@@ -7,6 +7,7 @@ import { loadPersonality } from "./personality.js";
 import { handleToolCall } from "./tools.js";
 import { clearInstruction } from "./ens.js";
 import type { NFTPersonality } from "../../0g/schema.js";
+import type { PoolConfig } from "./tools.js";
 
 // Force CJS build — the ESM chunks in 0g-serving-broker v0.7.5 are broken
 // (lib.esm/*.js are CJS files but index.mjs imports named exports from them)
@@ -116,7 +117,7 @@ const TOOLS = [
           action: { type: "string", enum: ["buy", "sell"] },
           token_in: { type: "string", description: "Token to sell, e.g. USDC" },
           token_out: { type: "string", description: "Token to buy, e.g. ETH" },
-          amount_in: { type: "string", description: "Amount in smallest units" },
+          amount_in: { type: "string", description: "Human-readable token amount to sell, e.g. '10' for 10 tokens (NOT wei). Must not exceed the balance returned by get_portfolio_balance." },
         },
         required: ["nft_id", "action", "token_in", "token_out", "amount_in"],
       },
@@ -146,27 +147,33 @@ const TOOLS = [
   },
 ];
 
-function buildSystemPrompt(personality: NFTPersonality): string {
+function buildSystemPrompt(personality: NFTPersonality, poolConfig?: PoolConfig): string {
+  const tokenNote = poolConfig?.tokens
+    ? `\nAvailable token symbols for this pool: ${Object.keys(poolConfig.tokens).join(", ")} (use these exact symbols in execute_trade).`
+    : "";
+  const feeNote = poolConfig?.fee ? `\nPool fee tier: ${poolConfig.fee} (${poolConfig.fee / 10000}%).` : "";
+
   return `You are ${personality.name}, an autonomous DeFi portfolio manager NFT (token #${personality.nftId}).
 
 ENS: ${personality.ensName}
 Risk tolerance: ${personality.riskTolerance}/10 (${personality.style})
 Preferred assets: ${personality.preferredAssets.join(", ")}
-Max position: ${personality.maxPositionPct}% of portfolio
+Max position: ${personality.maxPositionPct}% of portfolio${tokenNote}${feeNote}
 
 Your job each cycle:
 1. Call read_memory to review your trade history and personality.
 2. Call get_market_data for relevant tokens.
-3. Optionally call get_portfolio_balance and read_ens_instructions.
-4. Decide: buy, sell, or hold.
-5. If trading, call execute_trade.
-6. ALWAYS call write_memory last to record the decision.
+3. Call get_portfolio_balance to know your exact token balances before making any trade decision.
+4. Optionally call read_ens_instructions for human overrides.
+5. Decide: buy, sell, or hold. When trading, amount_in MUST be ≤ the balance shown by get_portfolio_balance.
+6. If trading, call execute_trade.
+7. ALWAYS call write_memory last to record the decision.
 
 Think like a ${personality.style} trader. Be concise in reasoning.`;
 }
 
 
-export async function runAgent(nftId: number): Promise<AgentResult> {
+export async function runAgent(nftId: number, poolConfig?: PoolConfig): Promise<AgentResult> {
   const rpcUrl = process.env.RPC_URL;
   const privateKey = process.env.PRIVATE_KEY;
   const providerAddress = process.env.ZERO_G_PROVIDER_ADDRESS;
@@ -187,7 +194,7 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
   const personality = await loadPersonality(nftId);
 
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(personality) },
+    { role: "system", content: buildSystemPrompt(personality, poolConfig) },
     { role: "user", content: `Run your portfolio management cycle for iNFT #${nftId}. Make a decision and record it.` },
   ];
 
@@ -231,7 +238,7 @@ export async function runAgent(nftId: number): Promise<AgentResult> {
 
     for (const tc of assistantMessage.tool_calls) {
       const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-      const result = await handleToolCall(tc.function.name, args, { nftId, ensName, lastTxHash, pendingEnsInstruction });
+      const result = await handleToolCall(tc.function.name, args, { nftId, ensName, lastTxHash, pendingEnsInstruction, poolConfig });
 
       trace.push({ tool: tc.function.name, args, result });
 

@@ -103,16 +103,20 @@ npm run deploy-mock
 ```
 
 What it does:
-1. Redeploys `PortfolioManager` with the correct **Sepolia SwapRouter** (`0x3bFA4769...`)
-2. Deploys `MockUSD` (mUSD, 18 dec) and `MockETH` (mETH, 18 dec)
-3. Creates a Uniswap V3 0.3% pool at a 1:1 price ratio
+1. Deploys `MockUSD` (mUSD, 18 dec) and `MockETH` (mETH, 18 dec)
+2. Mints tokens to the deployer wallet
+3. Creates a Uniswap V3 0.3% pool initialized at **1 mETH = 2,000 mUSD**
 4. Adds 50,000 of each token as full-range liquidity
-5. Deposits **1,000 mUSD + 1,000 mETH** into the `PortfolioManager` for nftId=1
+5. Deposits **200,000 mUSD + 100 mETH** (~$200k each side) into the `PortfolioManager` for nftId=1
 6. Writes all addresses into `deployments.json`
 
 After this the agent automatically picks up the mock token addresses — no further config needed.
 
-> **Note:** The pool is initialized at 1:1. The agent still uses real CoinGecko prices for BUY/SELL decisions; `amountOutMin` is set to `1 wei` for the mock pool so swaps succeed in both directions on testnet.
+> **Resumable:** Each step saves its result to `deployments.json` immediately on success. If the script fails mid-way, re-run `npm run deploy-mock` — completed steps are skipped automatically.
+
+> **Uniswap V3 on Sepolia** uses a separate deployment from Mainnet/Goerli:
+> - Factory: `0x0227628f3F023bb0B980b67D528571c95c6DaC1c`
+> - NonfungiblePositionManager: `0x1238536071E1c677A632429e3655c799b22cDA52`
 
 ### Step 5 — Mint your iNFT
 
@@ -138,6 +142,33 @@ The agent will:
 7. Clear the ENS instruction after it is processed
 8. Write the trade record to 0G Storage and update the on-chain `memoryHash`
 9. Save a full trace to `intelligence/logs/run-{timestamp}.json`
+
+#### Agent flags
+
+| Flag | Description | Default |
+|---|---|---|
+| `--nft-id <n>` | NFT token ID to manage | last minted |
+| `--pool-fee <n>` | Uniswap V3 fee tier (`500`, `3000`, `10000`) | from `deployments.json` → `UniswapPool.fee` |
+| `--token-a <SYMBOL:ADDRESS:DECIMALS>` | Override or add token A for the pool | from `deployments.json` |
+| `--token-b <SYMBOL:ADDRESS:DECIMALS>` | Override or add token B for the pool | from `deployments.json` |
+
+**Examples:**
+
+```bash
+# Default — pool fee and tokens auto-loaded from deployments.json
+npm run agent -- --nft-id 1
+
+# Override fee tier only (e.g. use the 0.05% pool)
+npm run agent -- --nft-id 1 --pool-fee 500
+
+# Use a completely different Uniswap V3 pool
+npm run agent -- --nft-id 1 \
+  --pool-fee 3000 \
+  --token-a WETH:0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14:18 \
+  --token-b USDC:0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238:6
+```
+
+Token symbols provided via `--token-a` / `--token-b` are passed to the AI so it knows which symbol names to use in `execute_trade` calls. They override the defaults loaded from `deployments.json`.
 
 ---
 
@@ -188,7 +219,10 @@ npx tsx --tsconfig tsconfig.cli.json scripts/setup-0g-account.ts  # fund 0G Comp
 
 # ── Demo commands ─────────────────────────────────────────────────────────────
 npm run mint                                                   # mint iNFT, upload personality to 0G
-npm run agent -- --nft-id 1                                    # run one decision cycle
+npm run agent -- --nft-id 1                                    # run one decision cycle (pool auto from deployments.json)
+npm run agent -- --nft-id 1 --pool-fee 500                     # override pool fee tier
+npm run agent -- --nft-id 1 --pool-fee 3000 \
+  --token-a WETH:0xfFf...14:18 --token-b USDC:0x1c7...38:6   # use a custom pool
 npm run history -- --nft-id 1                                  # print trade history from 0G
 npm run send-instruction -- --nft-id 1 "be conservative"       # write ENS instruction
 npm run watch -- --nft-id 1                                    # keeper watcher, autonomous loop
@@ -199,10 +233,10 @@ npm run watch -- --nft-id 1                                    # keeper watcher,
 ## Known Issues
 
 **`PM: insufficient balance` on `npm run agent`.**
-The `PortfolioManager` has no tokens for nftId=1 yet. Run `npm run deploy-mock` first — it deposits 1,000 mUSD and 1,000 mETH.
+The `PortfolioManager` has no tokens for nftId=1 yet. Run `npm run deploy-mock` first — it deposits 200,000 mUSD and 100 mETH.
 
-**`npm run deploy-mock` fails at pool creation / liquidity step.**
-This means the Uniswap V3 contracts at the addresses in the script are not deployed on your fork of Sepolia. The script uses the official Uniswap v3-periphery addresses (`deploys.md` — same as mainnet/testnets). Verify that `0x1F98431c8aD98523631AE4a59f267346ea31F984` (Factory) is live on Sepolia via [Sepolia Etherscan](https://sepolia.etherscan.io).
+**`npm run deploy-mock` fails at pool creation with `getPool returned no data`.**
+The classic Uniswap V3 addresses (Mainnet/Goerli) are **not** deployed on Sepolia. The script already uses the correct Sepolia-specific addresses. If you see this error, verify that `0x0227628f3F023bb0B980b67D528571c95c6DaC1c` (Factory) is live on [Sepolia Etherscan](https://sepolia.etherscan.io).
 
 **`No ENS resolver found for nerosbot.eth`.**
 This means `MAINNET_RPC_URL` is pointing to Sepolia, or the name is on Sepolia ENS and `ENS_RESOLVER` is not set. Set both in `.env`:

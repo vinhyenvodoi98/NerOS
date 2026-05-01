@@ -3,8 +3,8 @@ import { network } from "hardhat";
 import fs from "node:fs";
 import path from "node:path";
 
-// Uniswap V3 SwapRouter (original, not SwapRouter02) — same address on all chains
-const SWAP_ROUTER_DEFAULT = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
+// Uniswap V3 SwapRouter02 on Sepolia — pairs with factory 0x0227628f3F023bb0B980b67D528571c95c6DaC1c
+const SWAP_ROUTER_DEFAULT = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E";
 
 const { viem } = await network.create("sepolia");
 

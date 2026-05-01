@@ -8,21 +8,28 @@ import { getPrice } from "./market.js";
 import { readInstruction } from "./ens.js";
 import type { TradeRecord } from "../../0g/schema.js";
 
+export interface PoolConfig {
+  fee?: number;
+  tokens?: Record<string, { address: string; decimals: number }>;
+}
+
 export interface ToolContext {
   nftId: number;
   ensName: string;
   lastTxHash: { value: string | null };
   pendingEnsInstruction: { value: string | null };
+  poolConfig?: PoolConfig;
 }
 
 // Load token config — prefers MockUSD/MockETH from deployments.json (set by deploy-mock-tokens)
 // Falls back to real Sepolia WETH/USDC when mock tokens are not deployed.
-function loadTokenConfig(): { tokens: Record<string, { address: string; decimals: number }>; isMock: boolean } {
+function loadTokenConfig(): { tokens: Record<string, { address: string; decimals: number }>; isMock: boolean; poolFee: number } {
   try {
-    const deps = JSON.parse(fs.readFileSync(path.resolve("deployments.json"), "utf8")) as Record<string, { address: string }>;
+    const deps = JSON.parse(fs.readFileSync(path.resolve("deployments.json"), "utf8")) as Record<string, { address: string; fee?: number }>;
     if (deps.MockUSD?.address && deps.MockETH?.address) {
       return {
         isMock: true,
+        poolFee: deps.UniswapPool?.fee ?? 3000,
         tokens: {
           WETH: { address: deps.MockETH.address, decimals: 18 },
           ETH:  { address: deps.MockETH.address, decimals: 18 },
@@ -33,6 +40,7 @@ function loadTokenConfig(): { tokens: Record<string, { address: string; decimals
   } catch { /* fall through */ }
   return {
     isMock: false,
+    poolFee: 3000,
     tokens: {
       WETH: { address: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", decimals: 18 },
       ETH:  { address: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", decimals: 18 },
@@ -41,16 +49,13 @@ function loadTokenConfig(): { tokens: Record<string, { address: string; decimals
   };
 }
 
-const { tokens: SEPOLIA_TOKENS, isMock: IS_MOCK_POOL } = loadTokenConfig();
+const { tokens: SEPOLIA_TOKENS, isMock: IS_MOCK_POOL, poolFee: DEFAULT_POOL_FEE } = loadTokenConfig();
 
 const PORTFOLIO_MANAGER_ABI = [
   "function executeTrade(uint256 nftId, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint24 poolFee) external returns (uint256 amountOut)",
   "function getBalance(uint256 nftId, address token) external view returns (uint256)",
   "event TradeExecuted(uint256 indexed nftId, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)",
 ];
-
-// 0.3% fee tier — standard ETH/USDC pool on Uniswap V3
-const DEFAULT_POOL_FEE = 3000;
 
 function getPortfolioManagerAddress(): string {
   const deps = JSON.parse(
@@ -107,7 +112,7 @@ async function handleReadEnsInstructions(ctx: ToolContext) {
 // T-065: execute_trade — real Uniswap V3 swap via PortfolioManager
 async function handleExecuteTrade(
   args: Record<string, unknown>,
-  lastTxHash: { value: string | null },
+  ctx: ToolContext,
 ) {
   const { nft_id, token_in, token_out, amount_in } = args as {
     nft_id: number;
@@ -117,10 +122,14 @@ async function handleExecuteTrade(
     amount_in: string;
   };
 
+  // CLI-supplied tokens override/extend the defaults from deployments.json
+  const tokens = { ...SEPOLIA_TOKENS, ...ctx.poolConfig?.tokens };
+  const poolFee = ctx.poolConfig?.fee ?? DEFAULT_POOL_FEE;
+
   const tokenInKey  = token_in.toUpperCase();
   const tokenOutKey = token_out.toUpperCase();
-  const tokenInCfg  = SEPOLIA_TOKENS[tokenInKey];
-  const tokenOutCfg = SEPOLIA_TOKENS[tokenOutKey];
+  const tokenInCfg  = tokens[tokenInKey];
+  const tokenOutCfg = tokens[tokenOutKey];
 
   if (!tokenInCfg)  throw new Error(`Unsupported tokenIn: ${token_in}`);
   if (!tokenOutCfg) throw new Error(`Unsupported tokenOut: ${token_out}`);
@@ -161,13 +170,22 @@ async function handleExecuteTrade(
     wallet,
   );
 
+  // Pre-flight: verify balance so the AI gets a clear error instead of a revert
+  const onChainBalance = await pm.getBalance(nft_id, tokenInCfg.address) as bigint;
+  if (amountInBN > onChainBalance) {
+    const available = ethers.formatUnits(onChainBalance, tokenInCfg.decimals);
+    throw new Error(
+      `Insufficient balance: tried to spend ${amountInHuman} ${tokenInKey} but only ${available} available. Reduce amount_in.`
+    );
+  }
+
   const tx = await pm.executeTrade(
     nft_id,
     tokenInCfg.address,
     tokenOutCfg.address,
     amountInBN,
     amountOutMin,
-    DEFAULT_POOL_FEE,
+    poolFee,
   );
   const receipt = await tx.wait();
 
@@ -180,7 +198,7 @@ async function handleExecuteTrade(
   const amountOut = (tradeEvent?.args?.amountOut as bigint | undefined) ?? 0n;
   const amountOutFormatted = ethers.formatUnits(amountOut, tokenOutCfg.decimals);
 
-  lastTxHash.value = receipt.hash as string;
+  ctx.lastTxHash.value = receipt.hash as string;
   return { txHash: receipt.hash as string, amountOut: amountOutFormatted };
 }
 
@@ -224,7 +242,7 @@ export async function handleToolCall(
       return handleReadEnsInstructions(ctx);
 
     case "execute_trade":
-      return handleExecuteTrade(args, ctx.lastTxHash);
+      return handleExecuteTrade(args, ctx);
 
     case "write_memory":
       return handleWriteMemory(args, ctx.nftId, ctx.lastTxHash);

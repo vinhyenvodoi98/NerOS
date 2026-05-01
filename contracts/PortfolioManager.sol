@@ -3,7 +3,19 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+// SwapRouter02 interface — no `deadline` field (differs from SwapRouter V1)
+interface ISwapRouter02 {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24  fee;
+        address recipient;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+}
 
 interface IiNFT {
     struct Intelligence {
@@ -19,7 +31,7 @@ interface IiNFT {
 contract PortfolioManager {
     using SafeERC20 for IERC20;
 
-    ISwapRouter public immutable swapRouter;
+    ISwapRouter02 public immutable swapRouter;
     IiNFT public immutable iNFTContract;
 
     address public owner;
@@ -48,7 +60,7 @@ contract PortfolioManager {
     }
 
     constructor(address _swapRouter, address _iNFTContract) {
-        swapRouter = ISwapRouter(_swapRouter);
+        swapRouter = ISwapRouter02(_swapRouter);
         iNFTContract = IiNFT(_iNFTContract);
         owner = msg.sender;
     }
@@ -89,12 +101,11 @@ contract PortfolioManager {
 
         IERC20(tokenIn).forceApprove(address(swapRouter), amountIn);
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        ISwapRouter02.ExactInputSingleParams memory params = ISwapRouter02.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             fee: poolFee,
             recipient: address(this),
-            deadline: block.timestamp + 300,
             amountIn: amountIn,
             amountOutMinimum: amountOutMin,
             sqrtPriceLimitX96: 0

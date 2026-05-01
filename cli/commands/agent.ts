@@ -1,19 +1,43 @@
 import "dotenv/config";
 import { program } from "commander";
 import { runAgent } from "../../intelligence/agent/strategy.js";
+import type { PoolConfig } from "../../intelligence/agent/tools.js";
 import { resolveNftId } from "../session.js";
+
+// Parse "SYMBOL:ADDRESS:DECIMALS" → [symbol, {address, decimals}]
+function parseTokenFlag(raw: string): [string, { address: string; decimals: number }] {
+  const parts = raw.split(":");
+  if (parts.length !== 3) throw new Error(`Invalid --token format "${raw}". Expected SYMBOL:ADDRESS:DECIMALS (e.g. WETH:0x...:18)`);
+  const [symbol, address, dec] = parts;
+  const decimals = parseInt(dec, 10);
+  if (isNaN(decimals)) throw new Error(`Invalid decimals in "${raw}"`);
+  return [symbol.toUpperCase(), { address, decimals }];
+}
 
 program
   .option("--nft-id <n>", "NFT token ID", parseInt)
+  .option("--pool-fee <n>", "Uniswap V3 pool fee tier (500 | 3000 | 10000)", parseInt)
+  .option("--token-a <SYMBOL:ADDRESS:DECIMALS>", "Override/add token A (e.g. WETH:0xabc:18)")
+  .option("--token-b <SYMBOL:ADDRESS:DECIMALS>", "Override/add token B (e.g. USDC:0xdef:6)")
   .parse(process.argv);
 
-const opts = program.opts<{ nftId?: number }>();
+const opts = program.opts<{ nftId?: number; poolFee?: number; tokenA?: string; tokenB?: string }>();
 const nftId = resolveNftId(opts.nftId);
 
+const poolConfig: PoolConfig = {};
+if (opts.poolFee) poolConfig.fee = opts.poolFee;
+if (opts.tokenA || opts.tokenB) {
+  poolConfig.tokens = {};
+  if (opts.tokenA) { const [sym, cfg] = parseTokenFlag(opts.tokenA); poolConfig.tokens[sym] = cfg; }
+  if (opts.tokenB) { const [sym, cfg] = parseTokenFlag(opts.tokenB); poolConfig.tokens[sym] = cfg; }
+}
+
 console.log(`\n[Agent] Starting portfolio cycle for iNFT #${nftId}...`);
+if (poolConfig.fee) console.log(`[Agent] Pool fee override: ${poolConfig.fee}`);
+if (poolConfig.tokens) console.log(`[Agent] Token overrides: ${Object.keys(poolConfig.tokens).join(", ")}`);
 const start = Date.now();
 
-const result = await runAgent(nftId);
+const result = await runAgent(nftId, Object.keys(poolConfig).length ? poolConfig : undefined);
 
 const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 const toolsCalled = result.trace.map((r) => r.tool);
