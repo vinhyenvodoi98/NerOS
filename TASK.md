@@ -137,17 +137,17 @@
 - [x] **T-094** Run `npm run watch -- --nft-id 1`, wait for first automated trigger
 
 ### Ink CLI — Components
-- [ ] **T-100** `cli/components/Header.tsx` — boxen-style header:
+- [x] **T-100** `cli/components/Header.tsx` — boxen-style header:
   ```
   ╭─ AlphaBot · alphabot.eth ──────────────────────────────╮
   │  Risk 7/10 · aggressive · 0G: bafk...x7z ↗ · Cycle 13 │
   ╰─────────────────────────────────────────────────────────╯
   ```
-- [ ] **T-101** `cli/components/ToolRow.tsx`:
+- [x] **T-101** `cli/components/ToolRow.tsx`:
   - `status: "running"` → `● tool_name  ⠸` (ora spinner)
   - `status: "done"` → `● tool_name  ✓  {summary}` (green checkmark)
   - `status: "error"` → `● tool_name  ✗  {error}` (red)
-- [ ] **T-102** `cli/components/Decision.tsx`:
+- [x] **T-102** `cli/components/Decision.tsx`:
   ```
   ─────────────────────────────────────────────────────────
   {0G Compute AI's one-sentence reasoning streamed live}
@@ -156,7 +156,7 @@
   [HOLD]                                         ← gray badge
   Cycle 13 · Runtime 4.2s
   ```
-- [ ] **T-103** `cli/renderer.tsx` — root Ink `<App>` that composes Header + ToolRows + Decision; accepts agent stream as prop
+- [x] **T-103** `cli/renderer.tsx` — root Ink `<App>` that composes Header + ToolRows + Decision; accepts agent stream as prop
 
 ### Ink CLI — Commands
 - [ ] **T-104** `cli/commands/mint.ts`:
