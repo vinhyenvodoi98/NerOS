@@ -126,7 +126,30 @@ npm run mint
 
 This uploads the NFT personality JSON to 0G Storage and mints the iNFT on Sepolia.
 
-### Step 6 — Run the agent
+### Step 6 — Check portfolio balance
+
+```bash
+npm run balance -- --nft-id 1
+```
+
+Prints the current token balances held by the `PortfolioManager` for this NFT, with live USD values from CoinGecko:
+
+```
+  iNFT #1 · NerOSBot · nerosbot.eth
+  ──────────────────────────────────────────────────────
+  Token   Amount                Price         USD Value
+  ──────────────────────────────────────────────────────
+  ETH     86.008571             $2,300.76     $197,885.08
+  USDC    217,907.04            $0.9998       $217,855.40
+  ──────────────────────────────────────────────────────
+  Total                                       $415,740.48
+
+  ETH  24h: +1.79%   USDC 24h: +0.0060%
+```
+
+Automatically uses mock token addresses from `deployments.json` when present, otherwise falls back to real Sepolia WETH/USDC.
+
+### Step 7 — Run the agent
 
 ```bash
 npm run agent -- --nft-id 1
@@ -182,6 +205,11 @@ $ npm run mint                              $ npm run watch -- --nft-id 1
   ✓ iNFT #1 minted · tx: 0x...
   ✓ ENS: nerosbot.eth assigned
 
+$ npm run balance -- --nft-id 1
+  iNFT #1 · NerOSBot · nerosbot.eth
+  ETH  86.008 · $197,885   USDC 217,907 · $217,855
+  Total: $415,740
+
 $ npm run agent -- --nft-id 1
   ─── Tool Call Trace ─────────────────       [Keeper] Triggered at 14:23:05
     ✓ read_memory                              [Keeper] Running agent...
@@ -219,6 +247,7 @@ npx tsx --tsconfig tsconfig.cli.json scripts/setup-0g-account.ts  # fund 0G Comp
 
 # ── Demo commands ─────────────────────────────────────────────────────────────
 npm run mint                                                   # mint iNFT, upload personality to 0G
+npm run balance -- --nft-id 1                                  # show live portfolio balance + USD value
 npm run agent -- --nft-id 1                                    # run one decision cycle (pool auto from deployments.json)
 npm run agent -- --nft-id 1 --pool-fee 500                     # override pool fee tier
 npm run agent -- --nft-id 1 --pool-fee 3000 \
