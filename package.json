@@ -11,7 +11,8 @@
     "send-instruction": "tsx --tsconfig tsconfig.cli.json cli/commands/send-instruction.ts",
     "watch": "tsx --tsconfig tsconfig.cli.json cli/commands/watch.ts",
     "smoke-test": "tsx --tsconfig tsconfig.cli.json 0g/smoke-test.ts",
-    "deploy-mock": "npx hardhat run scripts/deploy-mock-tokens.ts --network sepolia"
+    "deploy-mock": "npx hardhat run scripts/deploy-mock-tokens.ts --network sepolia",
+    "deploy-keeper": "npx hardhat run scripts/deploy-keeper.ts --network sepolia"
   },
   "repository": {
     "type": "git",
@@ -30,6 +31,7 @@
     "@nomicfoundation/hardhat-ignition": "^3.1.3",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.4",
     "@types/node": "^22.19.17",
+    "@types/react": "^19.2.14",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.4.1",
     "typescript": "~5.8.0",

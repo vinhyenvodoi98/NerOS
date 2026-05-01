@@ -31,5 +31,10 @@
     "token0": "0x02713111dad86c1d864df80ccf365eb1131f0911",
     "token1": "0x0f5b98fd42c2499a310c2f1c205587b9a4c1154b",
     "fee": 3000
+  },
+  "KeeperAdapter": {
+    "address": "0x511a6080e71a3491e7724e850b69a74ec478d443",
+    "network": "sepolia",
+    "deployedAt": "2026-05-01T16:52:45.529Z"
   }
 }

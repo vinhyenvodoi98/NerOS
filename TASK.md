@@ -128,13 +128,13 @@
 ## DAY 4 — Automation + CLI Polish
 
 ### KeeperHub
-- [ ] **T-090** Write `contracts/KeeperAdapter.sol` (see PLAN.md §4.1)
-- [ ] **T-091** Deploy `KeeperAdapter.sol` to Sepolia + verify
-- [ ] **T-092** Register job on KeeperHub dashboard, link to deployed contract
-- [ ] **T-093** Write `intelligence/keeper/runner.ts`:
+- [x] **T-090** Write `contracts/KeeperAdapter.sol` (see PLAN.md §4.1)
+- [x] **T-091** Deploy `KeeperAdapter.sol` to Sepolia + verify
+- [x] **T-092** Register job on KeeperHub dashboard, link to deployed contract
+- [x] **T-093** Write `intelligence/keeper/runner.ts`:
   - `watchAndRun(nftId)` → subscribe to `UpkeepTriggered` event → call agent
   - Print to Ink UI: `[Keeper] Triggered {time} → running agent...`
-- [ ] **T-094** Run `npm run watch -- --nft-id 1`, wait for first automated trigger
+- [x] **T-094** Run `npm run watch -- --nft-id 1`, wait for first automated trigger
 
 ### Ink CLI — Components
 - [ ] **T-100** `cli/components/Header.tsx` — boxen-style header:

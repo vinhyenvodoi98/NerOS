@@ -18,6 +18,11 @@ const PM_ABI = [
   "function getBalance(uint256 nftId, address token) external view returns (uint256)",
 ];
 
+const KEEPER_ABI = [
+  "function lastRunTimestamp() external view returns (uint256)",
+  "function INTERVAL() external view returns (uint256)",
+];
+
 function loadTokenConfig() {
   try {
     const deps = JSON.parse(
@@ -45,6 +50,15 @@ function getPortfolioManagerAddress(): string {
   return deps.PortfolioManager.address;
 }
 
+function getKeeperAddress(): string | null {
+  try {
+    const deps = JSON.parse(
+      fs.readFileSync(path.resolve("deployments.json"), "utf8")
+    ) as Record<string, { address: string }>;
+    return deps.KeeperAdapter?.address ?? null;
+  } catch { return null; }
+}
+
 function fmt(n: number, dec = 2): string {
   return n.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
@@ -59,13 +73,22 @@ const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const pm = new ethers.Contract(getPortfolioManagerAddress(), PM_ABI, provider);
 const tokens = loadTokenConfig();
 
-const [personality, rawEth, rawUsdc, ethMkt, usdcMkt] = await Promise.all([
-  loadPersonality(nftId),
-  pm.getBalance(nftId, tokens.ETH.address) as Promise<bigint>,
-  pm.getBalance(nftId, tokens.USDC.address) as Promise<bigint>,
-  getPrice("ETH"),
-  getPrice("USDC"),
-]);
+const keeperAddress = getKeeperAddress();
+const keeper = keeperAddress
+  ? new ethers.Contract(keeperAddress, KEEPER_ABI, provider)
+  : null;
+
+const [personality, rawEth, rawUsdc, ethMkt, usdcMkt, keeperEthRaw, lastRunRaw, intervalRaw] =
+  await Promise.all([
+    loadPersonality(nftId),
+    pm.getBalance(nftId, tokens.ETH.address) as Promise<bigint>,
+    pm.getBalance(nftId, tokens.USDC.address) as Promise<bigint>,
+    getPrice("ETH"),
+    getPrice("USDC"),
+    keeperAddress ? provider.getBalance(keeperAddress) : Promise.resolve(0n),
+    keeper ? (keeper.lastRunTimestamp() as Promise<bigint>) : Promise.resolve(0n),
+    keeper ? (keeper.INTERVAL() as Promise<bigint>) : Promise.resolve(300n),
+  ]);
 
 const ethAmt  = parseFloat(ethers.formatUnits(rawEth,  tokens.ETH.decimals));
 const usdcAmt = parseFloat(ethers.formatUnits(rawUsdc, tokens.USDC.decimals));
@@ -113,5 +136,22 @@ console.log(
 const sign = (n: number) => (n >= 0 ? "+" : "");
 console.log(
   `\n  ETH  24h: ${sign(ethMkt.change24h)}${fmt(ethMkt.change24h, 2)}%` +
-  `   USDC 24h: ${sign(usdcMkt.change24h)}${fmt(usdcMkt.change24h, 4)}%\n`
+  `   USDC 24h: ${sign(usdcMkt.change24h)}${fmt(usdcMkt.change24h, 4)}%`
 );
+
+// KeeperAdapter section
+if (keeperAddress) {
+  const keeperEth = parseFloat(ethers.formatEther(keeperEthRaw));
+  const nowSec = BigInt(Math.floor(Date.now() / 1000));
+  const elapsed = nowSec - lastRunRaw;
+  const remaining = intervalRaw - elapsed;
+  const nextIn = remaining > 0n ? `in ${remaining}s` : "NOW (overdue)";
+
+  console.log(`\n  KeeperAdapter · ${keeperAddress}`);
+  console.log(DIVIDER);
+  console.log(`  ETH balance   ${fmt(keeperEth, 6)} ETH${keeperEth === 0 ? "  ⚠ no ETH — auto-trigger will fail" : ""}`);
+  console.log(`  Last trigger  ${lastRunRaw === 0n ? "never" : new Date(Number(lastRunRaw) * 1000).toLocaleString()}`);
+  console.log(`  Next trigger  ${nextIn}`);
+  console.log(DIVIDER);
+}
+console.log();
