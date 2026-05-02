@@ -7,17 +7,28 @@ import path from "node:path";
 import { etherscanTx } from "../link.js";
 import { C, SEP } from "../theme.js";
 
-const KEEPER_ABI = ["function withdraw() external"];
+const KEEPER_ABI = [
+  "function withdraw() external",
+  "function forceUpkeep() external",
+  "function performUpkeep(bytes calldata) external",
+  "function setActive(bool active) external",
+  "function isActive() external view returns (bool)",
+  "function lastRunTimestamp() external view returns (uint256)",
+  "function INTERVAL() external view returns (uint256)",
+];
 
 program
   .option("--fund [eth]",  "Send ETH to KeeperAdapter (default 0.01)")
   .option("--withdraw",    "Pull all ETH back from KeeperAdapter")
+  .option("--trigger",     "Force-trigger upkeep immediately (owner only, skips interval)")
+  .option("--stop",        "Pause the keeper — blocks performUpkeep and forceUpkeep")
+  .option("--start",       "Resume the keeper after a --stop")
   .parse(process.argv);
 
-const opts = program.opts<{ fund?: string | boolean; withdraw?: boolean }>();
+const opts = program.opts<{ fund?: string | boolean; withdraw?: boolean; trigger?: boolean; stop?: boolean; start?: boolean }>();
 
-if (!opts.fund && !opts.withdraw) {
-  console.error(chalk.hex(C.error)("  Usage: npm run keeper -- --fund [amount]  |  --withdraw"));
+if (!opts.fund && !opts.withdraw && !opts.trigger && !opts.stop && !opts.start) {
+  console.error(chalk.hex(C.error)("  Usage: npm run keeper -- --fund [amount]  |  --withdraw  |  --trigger  |  --stop  |  --start"));
   process.exit(1);
 }
 
@@ -37,7 +48,7 @@ const provider      = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const wallet        = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 const keeperAddress = getKeeperAddress();
 
-const action = opts.withdraw ? "Withdraw" : "Fund";
+const action = opts.withdraw ? "Withdraw" : opts.trigger ? "Trigger" : opts.stop ? "Stop" : opts.start ? "Start" : "Fund";
 console.log();
 console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim(`Keeper · ${action}`)}`);
 console.log(`  ${chalk.dim(SEP)}`);
@@ -130,5 +141,79 @@ if (opts.withdraw) {
   console.log(`     ${chalk.dim('Wallet bal ')}  ${chalk.bold(ethers.formatEther(walletAfter))} ETH`);
   console.log(`     ${chalk.dim('Tx         ')}  ${chalk.hex(C.accent)(etherscanTx(shortHash, tx.hash))} ↗`);
   console.log(`     ${chalk.dim('Block      ')}  ${receipt?.blockNumber}`);
+  console.log();
+}
+
+// ── Trigger ───────────────────────────────────────────────────────────────────
+if (opts.trigger) {
+  const keeper = new ethers.Contract(keeperAddress, KEEPER_ABI, wallet);
+
+  const [lastRunRaw, intervalRaw] = await Promise.all([
+    keeper.lastRunTimestamp() as Promise<bigint>,
+    keeper.INTERVAL()         as Promise<bigint>,
+  ]);
+  const nowSec    = BigInt(Math.floor(Date.now() / 1000));
+  const elapsed   = nowSec - lastRunRaw;
+  const remaining = intervalRaw - elapsed;
+
+  if (lastRunRaw > 0n) {
+    const lastRunDate = new Date(Number(lastRunRaw) * 1000).toLocaleTimeString();
+    console.log(`  ${chalk.dim('Last trigger ')}  ${lastRunDate}`);
+    if (remaining > 0n) {
+      const m = Math.floor(Number(remaining) / 60);
+      const s = Number(remaining) % 60;
+      console.log(`  ${chalk.dim('Time until   ')}  ${m}m ${String(s).padStart(2, "0")}s remaining (forcing past interval)`);
+    }
+    console.log();
+  }
+
+  process.stdout.write(`  ${chalk.dim('·')}  Calling forceUpkeep…  `);
+  const tx = await (keeper.forceUpkeep() as Promise<ethers.TransactionResponse>);
+  process.stdout.write(chalk.hex(C.warning)('pending') + '\n');
+
+  process.stdout.write(`  ${chalk.dim('·')}  Waiting for confirmation…  `);
+  const receipt = await tx.wait();
+  process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+
+  const shortHash = `${tx.hash.slice(0, 10)}…${tx.hash.slice(-8)}`;
+  console.log();
+  console.log(`  ${chalk.hex(C.success)('✓')}  UpkeepTriggered emitted — watch will fire the agent`);
+  console.log(`     ${chalk.dim('Tx    ')}  ${chalk.hex(C.accent)(etherscanTx(shortHash, tx.hash))} ↗`);
+  console.log(`     ${chalk.dim('Block ')}  ${receipt?.blockNumber}`);
+  console.log();
+}
+
+// ── Stop / Start ──────────────────────────────────────────────────────────────
+if (opts.stop || opts.start) {
+  const desired = !!opts.start;
+  const keeper  = new ethers.Contract(keeperAddress, KEEPER_ABI, wallet);
+
+  const current = await (keeper.isActive() as Promise<boolean>);
+  const label   = desired ? "active" : "paused";
+
+  if (current === desired) {
+    console.log(`  ${chalk.hex(C.warning)('·')}  Keeper is already ${label} — nothing to do.`);
+    console.log();
+    process.exit(0);
+  }
+
+  const verb = desired ? "Resuming" : "Pausing";
+  process.stdout.write(`  ${chalk.dim('·')}  ${verb} keeper…  `);
+  const tx = await (keeper.setActive(desired) as Promise<ethers.TransactionResponse>);
+  process.stdout.write(chalk.hex(C.warning)('pending') + '\n');
+
+  process.stdout.write(`  ${chalk.dim('·')}  Waiting for confirmation…  `);
+  const receipt = await tx.wait();
+  process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+
+  const shortHash = `${tx.hash.slice(0, 10)}…${tx.hash.slice(-8)}`;
+  console.log();
+  if (desired) {
+    console.log(`  ${chalk.hex(C.success)('✓')}  Keeper started — performUpkeep and forceUpkeep are active`);
+  } else {
+    console.log(`  ${chalk.hex(C.error)('✓')}  Keeper stopped — all upkeep calls will revert until --start`);
+  }
+  console.log(`     ${chalk.dim('Tx    ')}  ${chalk.hex(C.accent)(etherscanTx(shortHash, tx.hash))} ↗`);
+  console.log(`     ${chalk.dim('Block ')}  ${receipt?.blockNumber}`);
   console.log();
 }

@@ -184,9 +184,9 @@
   - Show countdown to next trigger (refresh every second)
 
 ### Day 4 Integration Check
-- [ ] **T-110** All 5 `npm run` commands work without errors
-- [ ] **T-111** `npm run agent` renders tool rows updating in real-time (not all at once)
-- [ ] **T-112** `npm run history` shows real trades from 0G with correct P&L
+- [x] **T-110** All 5 `npm run` commands work without errors
+- [x] **T-111** `npm run agent` renders tool rows updating in real-time (not all at once)
+- [x] **T-112** `npm run history` shows real trades from 0G with correct P&L
 - [ ] **T-113** `npm run watch` shows keeper trigger then auto-runs agent
 
 ---

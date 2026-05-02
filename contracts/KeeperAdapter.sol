@@ -6,11 +6,20 @@ contract KeeperAdapter {
 
     address public immutable owner;
     uint256 public lastRunTimestamp;
+    bool    public isActive = true;
 
     event UpkeepTriggered(uint256 timestamp);
+    event ActiveChanged(bool isActive);
 
     constructor() {
         owner = msg.sender;
+    }
+
+    /// @notice Owner-only pause/resume — stops performUpkeep and forceUpkeep.
+    function setActive(bool active) external {
+        require(msg.sender == owner, "KA: not owner");
+        isActive = active;
+        emit ActiveChanged(active);
     }
 
     /// @notice Called off-chain by KeeperHub to check whether upkeep is due.
@@ -19,14 +28,13 @@ contract KeeperAdapter {
         view
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        upkeepNeeded = (block.timestamp - lastRunTimestamp) >= INTERVAL;
+        upkeepNeeded = isActive && (block.timestamp - lastRunTimestamp) >= INTERVAL;
         performData = "";
     }
 
     /// @notice Called on-chain by KeeperHub when upkeep is needed.
-    /// Time-gated: reverts if INTERVAL has not elapsed. Idempotent: safe to call
-    /// again once another INTERVAL elapses.
     function performUpkeep(bytes calldata) external {
+        require(isActive, "KA: paused");
         require(
             block.timestamp - lastRunTimestamp >= INTERVAL,
             "KA: too soon"
@@ -38,6 +46,7 @@ contract KeeperAdapter {
     /// @notice Owner-only force trigger — skips the interval check for demos.
     function forceUpkeep() external {
         require(msg.sender == owner, "KA: not owner");
+        require(isActive, "KA: paused");
         lastRunTimestamp = block.timestamp;
         emit UpkeepTriggered(block.timestamp);
     }
