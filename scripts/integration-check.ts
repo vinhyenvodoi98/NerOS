@@ -35,7 +35,7 @@ async function main() {
   const personality: NFTPersonality = {
     nftId: 0, // placeholder — will be set after mint
     name: "AlphaBot",
-    ensName: "alphabot.eth",
+    ensName: "nerosbot.eth",
     riskTolerance: 7,
     style: "aggressive",
     preferredAssets: ["ETH", "USDC"],

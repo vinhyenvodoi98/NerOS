@@ -163,11 +163,13 @@ const nowSec   = BigInt(Math.floor(Date.now() / 1000));
 const remaining = interval - (nowSec - lastRun);
 startCountdown(remaining > 0n ? Number(remaining) : 0);
 
-// ── Event listener ─────────────────────────────────────────────────────────────
+// ── Log polling (eth_newFilter not supported by most RPCs — use getLogs) ───────
 
+const triggeredTopic = keeper.interface.getEvent("UpkeepTriggered")!.topicHash;
+let fromBlock = await provider.getBlockNumber();
 let agentRunning = false;
 
-keeper.on("UpkeepTriggered", async (_timestamp: bigint) => {
+async function handleTrigger(): Promise<void> {
   if (agentRunning) return;
   agentRunning = true;
   stopCountdown();
@@ -207,24 +209,41 @@ keeper.on("UpkeepTriggered", async (_timestamp: bigint) => {
     printActivity("error", err instanceof Error ? err.message : String(err));
   }
 
-  // Log the decision outcome in the Activity section
   if (agentDecision) {
     const d = agentDecision as { decision: string; txHash?: string | null };
-    printActivity(
-      d.decision as ActivityAction,
-      undefined,
-      d.txHash ?? null,
-    );
+    printActivity(d.decision as ActivityAction, undefined, d.txHash ?? null);
   }
 
   agentRunning = false;
 
-  const nowAfter      = BigInt(Math.floor(Date.now() / 1000));
-  const lastRunAfter  = await (keeper.lastRunTimestamp() as Promise<bigint>);
+  const nowAfter     = BigInt(Math.floor(Date.now() / 1000));
+  const lastRunAfter = await (keeper.lastRunTimestamp() as Promise<bigint>);
   const remainingAfter = interval - (nowAfter - lastRunAfter);
   console.log();
   startCountdown(remainingAfter > 0n ? Number(remainingAfter) : 0);
-});
+}
+
+// Poll every 12 s (≈ 1 Sepolia block). eth_getLogs is universally supported.
+setInterval(async () => {
+  try {
+    const toBlock = await provider.getBlockNumber();
+    if (toBlock < fromBlock) return;
+
+    const logs = await provider.getLogs({
+      address: keeperAddress,
+      topics:  [triggeredTopic],
+      fromBlock,
+      toBlock,
+    });
+
+    fromBlock = toBlock + 1;
+
+    for (const _log of logs) {
+      await handleTrigger();
+      break; // one trigger per poll cycle — ignore rapid-fire duplicates
+    }
+  } catch { /* transient RPC error — retry next poll */ }
+}, 12_000);
 
 // Keep process alive — never resolves
 await new Promise<never>(() => {});

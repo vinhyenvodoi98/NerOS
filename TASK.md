@@ -139,7 +139,7 @@
 ### Ink CLI — Components
 - [x] **T-100** `cli/components/Header.tsx` — boxen-style header:
   ```
-  ╭─ AlphaBot · alphabot.eth ──────────────────────────────╮
+  ╭─ AlphaBot · nerosbot.eth ──────────────────────────────╮
   │  Risk 7/10 · aggressive · 0G: bafk...x7z ↗ · Cycle 13 │
   ╰─────────────────────────────────────────────────────────╯
   ```
@@ -255,7 +255,7 @@ A task is done when:
 | PortfolioManager.sol | `TBD` |
 | KeeperAdapter.sol | `TBD` |
 | Demo iNFT ID | `#1` |
-| ENS Name | `alphabot.eth` |
+| ENS Name | `nerosbot.eth` |
 | Personality CID (0G) | `TBD` |
 | Memory CID (0G) | `TBD` |
 | KeeperHub Job URL | `TBD` |
