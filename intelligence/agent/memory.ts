@@ -35,29 +35,38 @@ export async function loadMemory(nftId: number): Promise<TradeMemory> {
   const cid: string = intel.memoryHash;
 
   if (!cid) {
+    console.log(`${MEMORY} iNFT #${nftId} — no memory on-chain yet, starting fresh`);
     return { nftId, trades: [], totalPnL: 0, lastUpdated: Date.now() };
   }
 
   try {
-    return await downloadJSON<TradeMemory>(cid);
+    const memory = await downloadJSON<TradeMemory>(cid);
+    console.log(`${MEMORY} loaded ${chalk.bold(memory.trades.length)} trade${memory.trades.length !== 1 ? "s" : ""} · P&L ${memory.totalPnL >= 0 ? "+" : ""}$${memory.totalPnL.toFixed(2)} · CID ${chalk.dim(cid.slice(0, 8) + "…")}`);
+    return memory;
   } catch {
-    // 0G testnet node may not have the file — start fresh
-    console.error(`${MEMORY} 0G download failed for CID ${cid} — starting with empty memory`);
+    console.error(`${MEMORY} 0G download failed for CID ${chalk.dim(cid.slice(0, 8) + "…")} — starting with empty memory`);
     return { nftId, trades: [], totalPnL: 0, lastUpdated: Date.now() };
   }
 }
 
 export async function appendTrade(nftId: number, record: TradeRecord): Promise<string> {
-  const memory = await loadMemory(nftId);
+  let memory: TradeMemory;
+  try {
+    memory = await loadMemory(nftId);
+  } catch {
+    memory = { nftId, trades: [], totalPnL: 0, lastUpdated: Date.now() };
+  }
 
   // append-only — never overwrite
   memory.trades.push(record);
   memory.lastUpdated = Date.now();
 
+  console.log(`${MEMORY} uploading trade #${memory.trades.length} to 0G…`);
   const inft = getContract();
   const newCid = await uploadJSON(memory);
   const tx = await inft.updateMemory(nftId, newCid);
   await tx.wait();
 
+  console.log(`${MEMORY} saved · new CID ${chalk.dim(newCid.slice(0, 8) + "…")} · tx ${chalk.dim(tx.hash.slice(0, 10) + "…")}`);
   return newCid;
 }

@@ -1,28 +1,11 @@
-import "dotenv/config";
 import React from "react";
-import { render, Box, Text } from "ink";
-import { program } from "commander";
-import { loadMemory } from "../../intelligence/agent/memory.js";
-import { loadPersonality } from "../../intelligence/agent/personality.js";
-import { resolveNftId } from "../session.js";
-import { Header } from "../components/Header.js";
-import { Section } from "../components/Section.js";
+import { Box, Text } from "ink";
+import { Header } from "./Header.js";
+import { Section } from "./Section.js";
 import { C } from "../theme.js";
 import { etherscanTx } from "../link.js";
 import type { TradeMemory, TradeRecord, NFTPersonality } from "../../0g/schema.js";
 
-program
-  .option("--nft-id <n>", "NFT token ID", parseInt)
-  .parse(process.argv);
-
-const opts = program.opts<{ nftId?: number }>();
-const nftId = resolveNftId(opts.nftId);
-const [memory, personality] = await Promise.all([
-  loadMemory(nftId),
-  loadPersonality(nftId),
-]);
-
-// ── Column widths ──────────────────────────────────────────────────────────────
 const W = { time: 17, action: 7, pair: 12, amtIn: 12, amtOut: 12, reason: 28, tx: 14 };
 const DIVIDER = "─".repeat(Object.values(W).reduce((a, b) => a + b, 0));
 
@@ -61,7 +44,12 @@ function TradeRow({ trade }: { trade: TradeRecord }) {
   );
 }
 
-function HistoryApp({ memory, personality }: { memory: TradeMemory; personality: NFTPersonality }) {
+export interface HistoryAppProps {
+  memory: TradeMemory;
+  personality: NFTPersonality;
+}
+
+export function HistoryApp({ memory, personality }: HistoryAppProps) {
   const { trades } = memory;
   const pnl = memory.totalPnL ?? 0;
   const pnlColor = pnl >= 0 ? C.success : C.error;
@@ -86,7 +74,6 @@ function HistoryApp({ memory, personality }: { memory: TradeMemory; personality:
         </Section>
       ) : (
         <Section title="Trade History">
-          {/* Column headers */}
           <Box paddingX={2}>
             <Text bold dimColor>{pad("Time",       W.time)}</Text>
             <Text bold dimColor>{pad("Action",     W.action)}</Text>
@@ -106,7 +93,6 @@ function HistoryApp({ memory, personality }: { memory: TradeMemory; personality:
             <Text dimColor>{DIVIDER}</Text>
           </Box>
 
-          {/* Summary */}
           <Box paddingX={2} gap={2} marginBottom={1}>
             <Text>Total P&L</Text>
             <Text color={pnlColor} bold>{pnlLabel}</Text>
@@ -117,9 +103,3 @@ function HistoryApp({ memory, personality }: { memory: TradeMemory; personality:
     </Box>
   );
 }
-
-const { unmount, waitUntilExit } = render(
-  <HistoryApp memory={memory} personality={personality} />
-);
-setTimeout(unmount, 150);
-await waitUntilExit();

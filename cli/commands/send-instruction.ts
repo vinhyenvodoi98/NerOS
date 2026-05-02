@@ -1,8 +1,12 @@
 import "dotenv/config";
+import chalk from "chalk";
 import { program } from "commander";
 import { loadPersonality } from "../../intelligence/agent/personality.js";
 import { setInstruction } from "../../intelligence/agent/ens.js";
 import { resolveNftId } from "../session.js";
+
+const C = { brand: '#d7875f', success: '#5faf5f', accent: '#87afd7', error: '#d75f5f' };
+const SEP = chalk.dim('─'.repeat(69));
 
 program
   .option("--nft-id <n>", "NFT token ID", parseInt)
@@ -14,7 +18,7 @@ const instruction = program.args[0];
 const nftId = resolveNftId(opts.nftId);
 
 if (!instruction) {
-  console.error('Usage: npm run send-instruction -- --nft-id 1 "be more conservative"');
+  process.stderr.write(chalk.hex(C.error)('  Usage: npm run send-instruction -- --nft-id 1 "be more conservative"\n'));
   process.exit(1);
 }
 
@@ -23,9 +27,21 @@ if (!process.env.PRIVATE_KEY) throw new Error("PRIVATE_KEY not set");
 const personality = await loadPersonality(nftId);
 const ensName = process.env.ENS_NAME ?? personality.ensName;
 
-console.log(`  Writing ENS instruction to ${ensName}...`);
-await setInstruction(ensName, instruction, process.env.PRIVATE_KEY);
+// Header
+console.log();
+console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim('Send Instruction')}`);
+console.log(`  ${SEP}`);
+console.log(`  ${chalk.bold(personality.name)}  ${chalk.dim(ensName)}`);
+console.log();
 
-console.log(`✓ ENS text record updated for ${ensName}`);
-console.log(`  Key: inft.instruction`);
-console.log(`  Value: "${instruction}"`);
+// Action
+process.stdout.write(`  ${chalk.dim('·')}  Writing to ENS ${chalk.hex(C.accent)(ensName)}…  `);
+await setInstruction(ensName, instruction, process.env.PRIVATE_KEY);
+process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+
+// Result
+console.log();
+console.log(`  ${chalk.hex(C.success)('✓')}  ENS text record updated`);
+console.log(`     ${chalk.dim('Key    ')}  inft.instruction`);
+console.log(`     ${chalk.dim('Value  ')}  ${chalk.italic(`"${instruction}"`)}`);
+console.log();

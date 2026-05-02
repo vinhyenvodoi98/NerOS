@@ -130,15 +130,16 @@ keeper.on("UpkeepTriggered", async (timestamp: bigint) => {
   console.log();
 
   try {
-    const [personality, memory] = await Promise.all([
-      loadPersonality(nftId),
-      loadMemory(nftId),
-    ]);
-    const cycleCount = memory.trades.length + 1;
+    const personality = await loadPersonality(nftId);
+    let cycleCount = 1;
+    try {
+      const memory = await loadMemory(nftId);
+      cycleCount = memory.trades.length + 1;
+    } catch { /* 0G unavailable — start at cycle 1 */ }
     const stream = new AgentStream();
 
     const { waitUntilExit } = render(
-      React.createElement(App, { personality, memoryCID: undefined, cycleCount, stream })
+      <App personality={personality} memoryCID={undefined} cycleCount={cycleCount} stream={stream} />
     );
 
     const start = Date.now();
