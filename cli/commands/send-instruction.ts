@@ -4,9 +4,7 @@ import { program } from "commander";
 import { loadPersonality } from "../../intelligence/agent/personality.js";
 import { setInstruction } from "../../intelligence/agent/ens.js";
 import { resolveNftId } from "../session.js";
-
-const C = { brand: '#d7875f', success: '#5faf5f', accent: '#87afd7', error: '#d75f5f' };
-const SEP = chalk.dim('─'.repeat(69));
+import { C, SEP } from "../theme.js";
 
 program
   .option("--nft-id <n>", "NFT token ID", parseInt)
@@ -30,7 +28,7 @@ const ensName = process.env.ENS_NAME ?? personality.ensName;
 // Header
 console.log();
 console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim('Send Instruction')}`);
-console.log(`  ${SEP}`);
+console.log(`  ${chalk.dim(SEP)}`);
 console.log(`  ${chalk.bold(personality.name)}  ${chalk.dim(ensName)}`);
 console.log();
 

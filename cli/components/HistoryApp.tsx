@@ -54,7 +54,7 @@ export function HistoryApp({ memory, personality }: HistoryAppProps) {
   const pnl = memory.totalPnL ?? 0;
   const pnlColor = pnl >= 0 ? C.success : C.error;
   const pnlLabel = `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}`;
-  const subtitle = `${trades.length} trade${trades.length !== 1 ? "s" : ""}`;
+  const subtitle = `${trades.length} trade${trades.length !== 1 ? "s" : ""}   ${pnlLabel} total P&L`;
 
   return (
     <Box flexDirection="column">

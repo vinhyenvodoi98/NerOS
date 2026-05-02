@@ -13,10 +13,8 @@ import { loadMemory } from "../../intelligence/agent/memory.js";
 import { resolveNftId } from "../session.js";
 import { AgentStream } from "../stream.js";
 import { App } from "../renderer.js";
-
-// Palette used for non-Ink (chalk) output — mirrors cli/theme.ts
-const C = { brand: '#d7875f', success: '#5faf5f', warning: '#d7af5f', accent: '#87afd7', error: '#d75f5f' };
-const SEP = chalk.dim('─'.repeat(69));
+import { C, SEP } from "../theme.js";
+import { etherscanTx } from "../link.js";
 
 function parseTokenFlag(raw: string): [string, { address: string; decimals: number }] {
   const parts = raw.split(":");
@@ -71,6 +69,48 @@ function fmtCountdown(secs: number): string {
   return m > 0 ? `${m}m ${s.toString().padStart(2, "0")}s` : `${s}s`;
 }
 
+function nowTime(): string {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+}
+
+// ── Activity log ───────────────────────────────────────────────────────────────
+
+let activityHeaderShown = false;
+
+type ActivityAction = "triggered" | "buy" | "sell" | "hold" | "error";
+
+const ACTION_COLOR: Record<ActivityAction, string | undefined> = {
+  triggered: C.warning,
+  buy:       C.success,
+  sell:      C.error,
+  hold:      undefined,
+  error:     C.error,
+};
+
+function printActivity(action: ActivityAction, detail?: string, txHash?: string | null): void {
+  if (!activityHeaderShown) {
+    console.log();
+    console.log(`  ${chalk.bold('Activity')}`);
+    console.log(`  ${chalk.dim(SEP)}`);
+    activityHeaderShown = true;
+  }
+  const time    = nowTime();
+  const color   = ACTION_COLOR[action];
+  const isBold  = action === "buy" || action === "sell";
+  const label   = action.toUpperCase().padEnd(9);
+  const colored = color
+    ? (isBold ? chalk.hex(color).bold(label) : chalk.hex(color)(label))
+    : (isBold ? chalk.bold(label) : chalk.dim(label));
+
+  const parts: string[] = [`  ${chalk.dim(time)}   ${colored}`];
+  if (detail) parts.push(chalk.dim(detail));
+  if (txHash) {
+    const short = `${txHash.slice(0, 6)}…${txHash.slice(-4)} ↗`;
+    parts.push(chalk.hex(C.accent)(etherscanTx(short, txHash)));
+  }
+  console.log(parts.join("   "));
+}
+
 // ── Countdown management ───────────────────────────────────────────────────────
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
@@ -89,7 +129,7 @@ function startCountdown(remainingSec: number): void {
     const label = secs > 0
       ? `Next trigger in ${chalk.hex(C.warning)(fmtCountdown(secs))}`
       : chalk.hex(C.warning)("Waiting for trigger…");
-    process.stdout.write(`\r  ${chalk.dim('·')}  ${label}   `);
+    process.stdout.write(`\r  ${chalk.dim("·")}  ${label}   `);
     if (secs > 0) secs--;
   };
   tick();
@@ -98,21 +138,28 @@ function startCountdown(remainingSec: number): void {
 
 // ── Setup ──────────────────────────────────────────────────────────────────────
 
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const provider      = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const keeperAddress = getKeeperAddress();
-const keeper = new ethers.Contract(keeperAddress, KEEPER_ABI, provider);
+const keeper        = new ethers.Contract(keeperAddress, KEEPER_ABI, provider);
 
-// Startup header
+// Load personality for the header (best-effort — fall back to raw IDs if unavailable)
+let nftName = `iNFT #${nftId}`;
+let ensName = "";
+try {
+  const personality = await loadPersonality(nftId);
+  nftName = personality.name;
+  ensName = personality.ensName;
+} catch { /* 0G unavailable — header shows raw ID */ }
+
 console.log();
-console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim('Keeper Watcher')}`);
-console.log(`  ${SEP}`);
-console.log(`  ${chalk.dim('iNFT')} #${nftId}   ${chalk.dim('KeeperAdapter:')} ${chalk.hex(C.accent)(keeperAddress)}`);
-console.log(`  ${chalk.dim('Press Ctrl+C to stop')}`);
+console.log(`  ${chalk.hex(C.brand).bold("◈ NerOS")}  ${chalk.dim("Keeper Watcher")}${ensName ? `  ${chalk.dim(" ".repeat(Math.max(0, 42 - "Keeper Watcher".length - nftName.length)))}${chalk.dim(ensName)}` : ""}`);
+console.log(`  ${chalk.dim(SEP)}`);
+console.log(`  ${chalk.bold(nftName)}   ${chalk.dim("Listening for triggers…")}   ${chalk.dim(keeperAddress)}`);
 console.log();
 
-const lastRun = await (keeper.lastRunTimestamp() as Promise<bigint>);
-const interval = await (keeper.INTERVAL() as Promise<bigint>);
-const nowSec = BigInt(Math.floor(Date.now() / 1000));
+const lastRun  = await (keeper.lastRunTimestamp() as Promise<bigint>);
+const interval = await (keeper.INTERVAL()          as Promise<bigint>);
+const nowSec   = BigInt(Math.floor(Date.now() / 1000));
 const remaining = interval - (nowSec - lastRun);
 startCountdown(remaining > 0n ? Number(remaining) : 0);
 
@@ -120,14 +167,14 @@ startCountdown(remaining > 0n ? Number(remaining) : 0);
 
 let agentRunning = false;
 
-keeper.on("UpkeepTriggered", async (timestamp: bigint) => {
+keeper.on("UpkeepTriggered", async (_timestamp: bigint) => {
   if (agentRunning) return;
   agentRunning = true;
   stopCountdown();
 
-  const time = new Date(Number(timestamp) * 1000).toLocaleTimeString();
-  console.log(`  ${chalk.hex(C.warning)('↯')}  Triggered at ${chalk.bold(time)}  —  running agent…`);
-  console.log();
+  printActivity("triggered", "running agent…");
+
+  let agentDecision: { decision: string; txHash?: string | null } | null = null;
 
   try {
     const personality = await loadPersonality(nftId);
@@ -145,9 +192,10 @@ keeper.on("UpkeepTriggered", async (timestamp: bigint) => {
     const start = Date.now();
     runAgent(nftId, hasPoolConfig ? poolConfig : undefined, {
       toolStart: (t) => stream.toolStart(t),
-      toolDone: (t, s) => stream.toolDone(t, s),
+      toolDone:  (t, s) => stream.toolDone(t, s),
       toolError: (t, e) => stream.toolError(t, e),
     }).then((result) => {
+      agentDecision = result;
       const elapsed = (Date.now() - start) / 1000;
       stream.decision(result.decision, result.reason, result.txHash, cycleCount, elapsed);
     }).catch((err) => {
@@ -156,13 +204,23 @@ keeper.on("UpkeepTriggered", async (timestamp: bigint) => {
 
     await waitUntilExit();
   } catch (err) {
-    console.error(`  ${chalk.hex(C.error)('✗')}  ${chalk.dim('Error:')} ${err instanceof Error ? err.message : err}`);
+    printActivity("error", err instanceof Error ? err.message : String(err));
+  }
+
+  // Log the decision outcome in the Activity section
+  if (agentDecision) {
+    const d = agentDecision as { decision: string; txHash?: string | null };
+    printActivity(
+      d.decision as ActivityAction,
+      undefined,
+      d.txHash ?? null,
+    );
   }
 
   agentRunning = false;
 
-  const nowAfter = BigInt(Math.floor(Date.now() / 1000));
-  const lastRunAfter = await (keeper.lastRunTimestamp() as Promise<bigint>);
+  const nowAfter      = BigInt(Math.floor(Date.now() / 1000));
+  const lastRunAfter  = await (keeper.lastRunTimestamp() as Promise<bigint>);
   const remainingAfter = interval - (nowAfter - lastRunAfter);
   console.log();
   startCountdown(remainingAfter > 0n ? Number(remainingAfter) : 0);

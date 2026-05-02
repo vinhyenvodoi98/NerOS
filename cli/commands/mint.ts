@@ -9,6 +9,7 @@ import { uploadJSON } from "../../0g/client.js";
 import type { NFTPersonality } from "../../0g/schema.js";
 import { setActiveNftId } from "../session.js";
 import { etherscanTx } from "../link.js";
+import { C, SEP } from "../theme.js";
 
 const INFT_ABI = [
   "event Minted(uint256 indexed tokenId, address indexed owner, string personalityCID)",
@@ -31,32 +32,37 @@ const inft = new ethers.Contract(iNFT.address, INFT_ABI, wallet);
 
 const rl = readline.createInterface({ input, output });
 
-console.log(chalk.bold("\n  Mint a new iNFT Portfolio Manager\n"));
+console.log();
+console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim('Mint new iNFT')}`);
+console.log(`  ${chalk.dim(SEP)}`);
+console.log();
 
-const name = (await rl.question("  Name your iNFT (e.g. AlphaBot): ")).trim() || "AlphaBot";
+const name = (await rl.question(`  Name your iNFT\n  > `)).trim() || "AlphaBot";
 
 let riskLevel = 7;
-const riskRaw = (await rl.question("  Risk level 1-10 [7]: ")).trim();
+const riskRaw = (await rl.question(`\n  Risk level  1 – 10\n  > `)).trim();
 if (riskRaw) {
   const n = parseInt(riskRaw, 10);
   riskLevel = !isNaN(n) && n >= 1 && n <= 10 ? n : 7;
 }
 
-const styleRaw = (await rl.question("  Style (aggressive/balanced/conservative) [auto]: ")).trim();
+const styleRaw = (await rl.question(`\n  Style   aggressive / balanced / conservative\n  > `)).trim();
 const style: NFTPersonality["style"] =
   styleRaw === "aggressive" || styleRaw === "balanced" || styleRaw === "conservative"
     ? styleRaw
     : riskLevel >= 7 ? "aggressive" : riskLevel >= 4 ? "balanced" : "conservative";
 
-const assetsRaw = (await rl.question("  Preferred assets comma-separated [ETH,USDC]: ")).trim();
+const assetsRaw = (await rl.question(`\n  Preferred assets\n  > `)).trim();
 const preferredAssets = assetsRaw
   ? assetsRaw.split(",").map((a) => a.trim().toUpperCase()).filter(Boolean)
   : ["ETH", "USDC"];
 
-const ensRaw = (await rl.question("  ENS name (without .eth) [nerosbot]: ")).trim();
+const ensRaw = (await rl.question(`\n  ENS name\n  > `)).trim();
 const ensName = `${ensRaw || "nerosbot"}.eth`;
 
 rl.close();
+console.log();
+console.log(`  ${chalk.dim(SEP)}`);
 console.log();
 
 // Predict tokenId via staticCall so personality stores the correct nftId
@@ -76,11 +82,15 @@ const personality: NFTPersonality = {
   createdAt: Date.now(),
 };
 
-process.stdout.write("  Uploading personality to 0G... ");
-const cid = await uploadJSON(personality);
-console.log(chalk.green("✓") + chalk.dim(` CID: ${cid.slice(0, 10)}...`));
+const LABEL = 24;
+const padLabel = (s: string) => s.padEnd(LABEL);
 
-process.stdout.write("  Minting iNFT on Sepolia... ");
+process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Uploading personality')}  `);
+const cid = await uploadJSON(personality);
+const shortCid = `${cid.slice(0, 8)}…${cid.slice(-6)}`;
+process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+
+process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Minting iNFT on Sepolia')}  `);
 const tx = await (inft.mint as unknown as (cid: string, risk: number) => Promise<ethers.ContractTransactionResponse>)(cid, riskLevel);
 const receipt = await tx.wait();
 if (!receipt) throw new Error("Transaction failed — no receipt");
@@ -90,14 +100,16 @@ const mintedEvent = (receipt.logs as unknown as { topics: readonly string[]; dat
   .map((log) => { try { return iface.parseLog(log); } catch { return null; } })
   .find((e) => e?.name === "Minted");
 const tokenId = mintedEvent ? Number(mintedEvent.args.tokenId) : predictedId;
-
-console.log(chalk.green("✓"));
+process.stdout.write(chalk.hex(C.success)('✓') + '\n');
 console.log();
-console.log(chalk.green(`  ✓ Personality uploaded → 0G`));
-const shortMintTx = `${receipt.hash.slice(0, 6)}…${receipt.hash.slice(-4)}`;
-console.log(chalk.green(`  ✓ iNFT #${tokenId} minted`) + `  ` + etherscanTx(chalk.hex('#87afd7')(`${shortMintTx} ↗`), receipt.hash));
-console.log(chalk.green(`  ✓ ENS: ${ensName}`));
+
+const shortTx = `${receipt.hash.slice(0, 8)}…${receipt.hash.slice(-6)}`;
+
+console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Personality uploaded')}  ${chalk.dim('CID:')} ${chalk.hex(C.accent)(shortCid)}`);
+console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel(`iNFT #${tokenId} minted`)}  ${chalk.hex(C.accent)(etherscanTx(`${shortTx} ↗`, receipt.hash))}`);
+console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('ENS assigned')}  ${chalk.dim(ensName)}`);
 console.log();
 
 setActiveNftId(tokenId);
-console.log(chalk.dim(`  Active iNFT set to #${tokenId} — no need to pass --nft-id next time.\n`));
+console.log(`     ${chalk.dim(`Active NFT set to #${tokenId} — no need to pass --nft-id next time.`)}`);
+console.log();

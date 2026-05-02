@@ -5,9 +5,7 @@ import { ethers } from "ethers";
 import fs from "node:fs";
 import path from "node:path";
 import { etherscanTx } from "../link.js";
-
-const C = { brand: '#d7875f', success: '#5faf5f', accent: '#87afd7', error: '#d75f5f', warning: '#d7af5f' };
-const SEP = chalk.dim('─'.repeat(69));
+import { C, SEP } from "../theme.js";
 
 const KEEPER_ABI = ["function withdraw() external"];
 
@@ -42,7 +40,7 @@ const keeperAddress = getKeeperAddress();
 const action = opts.withdraw ? "Withdraw" : "Fund";
 console.log();
 console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim(`Keeper · ${action}`)}`);
-console.log(`  ${SEP}`);
+console.log(`  ${chalk.dim(SEP)}`);
 console.log(`  ${chalk.dim('KeeperAdapter')}  ${chalk.hex(C.accent)(keeperAddress)}`);
 console.log(`  ${chalk.dim('Wallet       ')}  ${wallet.address}`);
 console.log();
