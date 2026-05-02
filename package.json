@@ -12,7 +12,8 @@
     "watch": "tsx --tsconfig tsconfig.cli.json cli/commands/watch.tsx",
     "smoke-test": "tsx --tsconfig tsconfig.cli.json 0g/smoke-test.ts",
     "deploy-mock": "npx hardhat run scripts/deploy-mock-tokens.ts --network sepolia",
-    "deploy-keeper": "npx hardhat run scripts/deploy-keeper.ts --network sepolia"
+    "deploy-keeper": "npx hardhat run scripts/deploy-keeper.ts --network sepolia",
+    "keeper": "tsx --tsconfig tsconfig.cli.json cli/commands/keeper.ts"
   },
   "repository": {
     "type": "git",

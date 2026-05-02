@@ -41,4 +41,14 @@ contract KeeperAdapter {
         lastRunTimestamp = block.timestamp;
         emit UpkeepTriggered(block.timestamp);
     }
+
+    /// @notice Accept ETH for gas funding.
+    receive() external payable {}
+
+    /// @notice Withdraw all ETH back to owner.
+    function withdraw() external {
+        require(msg.sender == owner, "KA: not owner");
+        (bool ok, ) = owner.call{ value: address(this).balance }("");
+        require(ok, "KA: transfer failed");
+    }
 }
