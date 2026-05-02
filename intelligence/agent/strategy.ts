@@ -3,11 +3,15 @@ import { ethers } from "ethers";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import chalk from "chalk";
+import { etherscanTx } from "../../cli/link.js";
 import { loadPersonality } from "./personality.js";
 import { handleToolCall } from "./tools.js";
 import { clearInstruction } from "./ens.js";
 import type { NFTPersonality } from "../../0g/schema.js";
 import type { PoolConfig } from "./tools.js";
+
+const AGENT = chalk.hex('#87afd7').bold('[Agent]');
 
 // Force CJS build — the ESM chunks in 0g-serving-broker v0.7.5 are broken
 // (lib.esm/*.js are CJS files but index.mjs imports named exports from them)
@@ -19,6 +23,47 @@ export interface AgentResult {
   reason: string;
   txHash: string | null;
   trace: ToolCallRecord[];
+}
+
+export interface StreamCallbacks {
+  toolStart?: (tool: string) => void;
+  toolDone?: (tool: string, summary?: string) => void;
+  toolError?: (tool: string, error: string) => void;
+}
+
+function toolSummary(tool: string, args: Record<string, unknown>, result: unknown): string | undefined {
+  try {
+    if (tool === "read_memory") {
+      const r = result as { memory?: { trades?: unknown[]; totalPnL?: number } };
+      const count = r.memory?.trades?.length ?? 0;
+      const pnl = r.memory?.totalPnL ?? 0;
+      return `${count} trade${count !== 1 ? "s" : ""} · ${pnl >= 0 ? "+" : ""}$${Math.abs(pnl).toFixed(0)}`;
+    }
+    if (tool === "get_market_data") {
+      const sym = (args["token"] as string | undefined) ?? "";
+      const r = result as { price?: number; change24h?: number };
+      const price = (r.price ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
+      const chg = r.change24h ?? 0;
+      return `${sym} $${price} ${chg >= 0 ? "↑" : "↓"}${Math.abs(chg).toFixed(1)}%`;
+    }
+    if (tool === "get_portfolio_balance") {
+      const r = result as Record<string, string>;
+      return Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(" · ");
+    }
+    if (tool === "read_ens_instructions") {
+      return result ? `"${String(result).slice(0, 40)}"` : "(none)";
+    }
+    if (tool === "execute_trade") {
+      const r = result as { txHash?: string };
+      const h = r.txHash;
+      if (h && h !== "0xstub") return etherscanTx(`${h.slice(0, 6)}…${h.slice(-4)} ↗`, h);
+    }
+    if (tool === "write_memory") {
+      const r = result as { newCid?: string };
+      if (r.newCid) return `CID: ${r.newCid.slice(0, 6)}...${r.newCid.slice(-3)} ↗`;
+    }
+  } catch { /* ignore summary errors */ }
+  return undefined;
 }
 
 interface ToolCallRecord {
@@ -173,7 +218,7 @@ Think like a ${personality.style} trader. Be concise in reasoning.`;
 }
 
 
-export async function runAgent(nftId: number, poolConfig?: PoolConfig): Promise<AgentResult> {
+export async function runAgent(nftId: number, poolConfig?: PoolConfig, stream?: StreamCallbacks): Promise<AgentResult> {
   const rpcUrl = process.env.RPC_URL;
   const privateKey = process.env.PRIVATE_KEY;
   const providerAddress = process.env.ZERO_G_PROVIDER_ADDRESS;
@@ -219,7 +264,7 @@ export async function runAgent(nftId: number, poolConfig?: PoolConfig): Promise<
       const errText = await res.text();
       // Retry once on rate limit (429) after a 10-second backoff
       if (res.status === 429) {
-        console.error(`[Agent] Rate limited — waiting 10s before retry`);
+        console.error(`${AGENT} Rate limited — waiting 10s before retry`);
         await new Promise((r) => setTimeout(r, 10_000));
         continue;
       }
@@ -238,11 +283,15 @@ export async function runAgent(nftId: number, poolConfig?: PoolConfig): Promise<
 
     for (const tc of assistantMessage.tool_calls) {
       const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+      stream?.toolStart?.(tc.function.name);
       let result: unknown;
       try {
         result = await handleToolCall(tc.function.name, args, { nftId, ensName, lastTxHash, pendingEnsInstruction, poolConfig });
+        stream?.toolDone?.(tc.function.name, toolSummary(tc.function.name, args, result));
       } catch (err) {
-        result = { error: err instanceof Error ? err.message : String(err) };
+        const errMsg = err instanceof Error ? err.message : String(err);
+        result = { error: errMsg };
+        stream?.toolError?.(tc.function.name, errMsg);
       }
 
       trace.push({ tool: tc.function.name, args, result });
@@ -272,13 +321,13 @@ export async function runAgent(nftId: number, poolConfig?: PoolConfig): Promise<
   const requiredTools = ["read_memory", "get_market_data"];
   const missingTools = requiredTools.filter((t) => !toolsUsed.has(t));
   if (missingTools.length > 0) {
-    console.warn(`[Agent] WARNING T-051: required tool(s) not called: ${missingTools.join(", ")}`);
+    console.warn(`${AGENT} WARNING T-051: required tool(s) not called: ${missingTools.join(", ")}`);
   }
 
   // T-052: verify write_memory was the final tool call
   const lastTraceTool = trace[trace.length - 1]?.tool;
   if (lastTraceTool !== "write_memory") {
-    console.warn(`[Agent] WARNING T-052: last tool was '${lastTraceTool ?? "none"}', expected 'write_memory'`);
+    console.warn(`${AGENT} WARNING T-052: last tool was '${lastTraceTool ?? "none"}', expected 'write_memory'`);
   }
 
   // T-054: persist trace log

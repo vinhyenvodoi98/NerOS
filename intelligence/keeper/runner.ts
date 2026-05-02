@@ -2,8 +2,12 @@ import "dotenv/config";
 import { ethers } from "ethers";
 import fs from "node:fs";
 import path from "node:path";
+import chalk from "chalk";
+import { etherscanTx } from "../../cli/link.js";
 import { runAgent } from "../agent/strategy.js";
 import type { PoolConfig } from "../agent/tools.js";
+
+const KEEPER = chalk.hex('#5faf5f').bold('[Keeper]');
 
 const KEEPER_ABI = [
   "event UpkeepTriggered(uint256 timestamp)",
@@ -28,8 +32,8 @@ export async function watchAndRun(nftId: number, poolConfig?: PoolConfig): Promi
   const keeperAddress = getKeeperAddress();
   const keeper = new ethers.Contract(keeperAddress, KEEPER_ABI, provider);
 
-  console.log(`[Keeper] KeeperAdapter: ${keeperAddress}`);
-  console.log(`[Keeper] Watching for UpkeepTriggered events for iNFT #${nftId}...`);
+  console.log(`${KEEPER} KeeperAdapter: ${keeperAddress}`);
+  console.log(`${KEEPER} Watching for UpkeepTriggered events for iNFT #${nftId}...`);
 
   // Show time until next trigger
   const lastRun = await (keeper.lastRunTimestamp() as Promise<bigint>);
@@ -38,9 +42,9 @@ export async function watchAndRun(nftId: number, poolConfig?: PoolConfig): Promi
   const remaining = interval - (nowSec - lastRun);
 
   if (remaining > 0n) {
-    console.log(`[Keeper] Next trigger in ~${remaining}s`);
+    console.log(`${KEEPER} Next trigger in ~${remaining}s`);
   } else {
-    console.log(`[Keeper] Ready to trigger (overdue by ${-remaining}s)`);
+    console.log(`${KEEPER} Ready to trigger (overdue by ${-remaining}s)`);
   }
 
   keeper.on("UpkeepTriggered", async (timestamp: bigint) => {
@@ -49,9 +53,9 @@ export async function watchAndRun(nftId: number, poolConfig?: PoolConfig): Promi
     try {
       const result = await runAgent(nftId, poolConfig);
       const badge = result.decision.toUpperCase();
-      console.log(`[Keeper] Agent completed: ${badge} · ${result.reason}`);
+      console.log(`${KEEPER} Agent completed: ${badge} · ${result.reason}`);
       if (result.txHash) {
-        console.log(`[Keeper] Tx: https://sepolia.etherscan.io/tx/${result.txHash}`);
+        console.log(`${KEEPER} Tx: ${etherscanTx(chalk.hex('#87afd7')(`${result.txHash.slice(0, 6)}…${result.txHash.slice(-4)} ↗`), result.txHash)}`);
       }
     } catch (err) {
       console.error("[Keeper] Agent error:", err instanceof Error ? err.message : err);

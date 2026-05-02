@@ -1,56 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Box, useApp } from "ink";
-import { EventEmitter } from "events";
 import { Header } from "./components/Header.js";
 import { ToolRow } from "./components/ToolRow.js";
 import { Decision } from "./components/Decision.js";
+import { Section } from "./components/Section.js";
 import type { NFTPersonality } from "../0g/schema.js";
+import { AgentStream, type AgentStreamEvent } from "./stream.js";
 
-// ── Event contract ─────────────────────────────────────────────────────────────
-// T-105 emits these events on the stream as the agent runs.
-
-export type AgentStreamEvent =
-  | { type: "tool_start"; tool: string }
-  | { type: "tool_done"; tool: string; summary?: string }
-  | { type: "tool_error"; tool: string; error: string }
-  | {
-      type: "decision";
-      decision: "buy" | "sell" | "hold";
-      reason: string;
-      txHash?: string | null;
-      cycleCount?: number;
-      elapsed: number;
-    };
-
-export class AgentStream extends EventEmitter {
-  toolStart(tool: string) {
-    this.emit("event", { type: "tool_start", tool } satisfies AgentStreamEvent);
-  }
-  toolDone(tool: string, summary?: string) {
-    this.emit("event", { type: "tool_done", tool, summary } satisfies AgentStreamEvent);
-  }
-  toolError(tool: string, error: string) {
-    this.emit("event", { type: "tool_error", tool, error } satisfies AgentStreamEvent);
-  }
-  decision(
-    decision: "buy" | "sell" | "hold",
-    reason: string,
-    txHash: string | null,
-    cycleCount: number | undefined,
-    elapsed: number,
-  ) {
-    this.emit("event", {
-      type: "decision",
-      decision,
-      reason,
-      txHash,
-      cycleCount,
-      elapsed,
-    } satisfies AgentStreamEvent);
-  }
-}
-
-// ── Internal state types ───────────────────────────────────────────────────────
+export { AgentStream, type AgentStreamEvent };
 
 interface ToolRowState {
   tool: string;
@@ -65,8 +22,6 @@ interface DecisionState {
   cycleCount?: number;
   elapsed: number;
 }
-
-// ── App component ──────────────────────────────────────────────────────────────
 
 interface AppProps {
   personality: NFTPersonality;
@@ -108,7 +63,6 @@ export function App({ personality, memoryCID, cycleCount, stream }: AppProps) {
           cycleCount: ev.cycleCount,
           elapsed: ev.elapsed,
         });
-        // Give Ink one render tick to paint, then exit cleanly
         setTimeout(() => exit(), 50);
       }
     }
@@ -127,14 +81,18 @@ export function App({ personality, memoryCID, cycleCount, stream }: AppProps) {
         memoryCID={memoryCID}
         cycleCount={cycleCount}
       />
-      {rows.map((row, i) => (
-        <ToolRow
-          key={`${row.tool}-${i}`}
-          tool={row.tool}
-          status={row.status}
-          summary={row.summary}
-        />
-      ))}
+
+      <Section title="Steps">
+        {rows.map((row, i) => (
+          <ToolRow
+            key={`${row.tool}-${i}`}
+            tool={row.tool}
+            status={row.status}
+            summary={row.summary}
+          />
+        ))}
+      </Section>
+
       {decisionState && (
         <Decision
           decision={decisionState.decision}

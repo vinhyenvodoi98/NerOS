@@ -159,26 +159,26 @@
 - [x] **T-103** `cli/renderer.tsx` — root Ink `<App>` that composes Header + ToolRows + Decision; accepts agent stream as prop
 
 ### Ink CLI — Commands
-- [ ] **T-104** `cli/commands/mint.ts`:
+- [x] **T-104** `cli/commands/mint.ts`:
   - Prompt: name, risk level (1-10), style, preferred assets
   - Upload personality JSON to 0G → get CID
   - Call `iNFT.mint(cid, riskLevel)` → await tx
   - Print: `✓ iNFT #{id} minted · tx: 0x... ↗` + `✓ ENS: {name}.eth`
-- [ ] **T-105** `cli/commands/agent.ts`:
+- [x] **T-105** `cli/commands/agent.ts`:
   - Parse `--nft-id` flag (commander)
   - Start Ink `<App>`, render Header
   - Stream 0G Compute AI tool calls → update ToolRow components in real time
   - On finish: render Decision component
-- [ ] **T-106** `cli/commands/history.ts`:
+- [x] **T-106** `cli/commands/history.ts`:
   - Load `TradeMemory` from 0G
   - Print table: `Time | Action | Pair | Amount In | Amount Out | P&L | Reason | Tx`
   - P&L column: green positive, red negative
   - Footer: `Total P&L: +$187.40 · 12 trades`
-- [ ] **T-107** `cli/commands/send-instruction.ts`:
+- [x] **T-107** `cli/commands/send-instruction.ts`:
   - Args: `--nft-id <n> "<instruction>"`
   - Read ENS name from personality → write text record
   - Print: `✓ ENS text record updated for {ensName}`
-- [ ] **T-108** `cli/commands/watch.ts`:
+- [x] **T-108** `cli/commands/watch.ts`:
   - Print keeper status header
   - Listen for `UpkeepTriggered` → run agent → show Ink renderer inline
   - Show countdown to next trigger (refresh every second)

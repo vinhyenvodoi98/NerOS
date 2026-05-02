@@ -6,7 +6,7 @@
     "test": "npx hardhat test",
     "mint": "tsx --tsconfig tsconfig.cli.json cli/commands/mint.ts",
     "agent": "tsx --tsconfig tsconfig.cli.json cli/commands/agent.ts",
-    "history": "tsx --tsconfig tsconfig.cli.json cli/commands/history.ts",
+    "history": "tsx --tsconfig tsconfig.cli.json cli/commands/history.tsx",
     "balance": "tsx --tsconfig tsconfig.cli.json cli/commands/balance.ts",
     "send-instruction": "tsx --tsconfig tsconfig.cli.json cli/commands/send-instruction.ts",
     "watch": "tsx --tsconfig tsconfig.cli.json cli/commands/watch.ts",

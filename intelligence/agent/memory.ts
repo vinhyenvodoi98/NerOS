@@ -2,8 +2,11 @@ import "dotenv/config";
 import { ethers } from "ethers";
 import fs from "node:fs";
 import path from "node:path";
+import chalk from "chalk";
 import { uploadJSON, downloadJSON } from "../../0g/client.js";
 import type { TradeMemory, TradeRecord } from "../../0g/schema.js";
+
+const MEMORY = chalk.hex('#d7af5f').bold('[Memory]');
 
 const INFT_ABI = [
   "function getIntelligence(uint256 tokenId) external view returns (tuple(string personalityHash, string memoryHash, address portfolioManager, uint8 riskLevel, bool isActive))",
@@ -39,7 +42,7 @@ export async function loadMemory(nftId: number): Promise<TradeMemory> {
     return await downloadJSON<TradeMemory>(cid);
   } catch {
     // 0G testnet node may not have the file — start fresh
-    console.error(`[memory] 0G download failed for CID ${cid} — starting with empty memory`);
+    console.error(`${MEMORY} 0G download failed for CID ${cid} — starting with empty memory`);
     return { nftId, trades: [], totalPnL: 0, lastUpdated: Date.now() };
   }
 }

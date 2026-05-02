@@ -2,8 +2,11 @@ import "dotenv/config";
 import { ethers } from "ethers";
 import fs from "node:fs";
 import path from "node:path";
+import chalk from "chalk";
 import { downloadJSON } from "../../0g/client.js";
 import type { NFTPersonality } from "../../0g/schema.js";
+
+const PERSONALITY = chalk.hex('#d7875f').bold('[Personality]');
 
 const INFT_ABI = [
   "function getIntelligence(uint256 tokenId) external view returns (tuple(string personalityHash, string memoryHash, address portfolioManager, uint8 riskLevel, bool isActive))",
@@ -38,7 +41,7 @@ export async function loadPersonality(nftId: number): Promise<NFTPersonality> {
     const riskLevel = Number(intel.riskLevel);
     const style: NFTPersonality["style"] =
       riskLevel >= 7 ? "aggressive" : riskLevel >= 4 ? "balanced" : "conservative";
-    console.error(`[personality] 0G download failed for CID ${cid} — using on-chain fallback`);
+    console.error(`${PERSONALITY} 0G download failed for CID ${cid} — using on-chain fallback`);
     return {
       nftId,
       name: `NerOSBot`,
