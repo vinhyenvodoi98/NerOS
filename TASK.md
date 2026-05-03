@@ -139,7 +139,7 @@
 ### Ink CLI — Components
 - [x] **T-100** `cli/components/Header.tsx` — boxen-style header:
   ```
-  ╭─ AlphaBot · nerosbot.eth ──────────────────────────────╮
+  ╭─ NerOSBot · nerosbot.eth ──────────────────────────────╮
   │  Risk 7/10 · aggressive · 0G: bafk...x7z ↗ · Cycle 13 │
   ╰─────────────────────────────────────────────────────────╯
   ```
@@ -257,7 +257,7 @@
 
 ### Level 2 — KeeperHub HTTP Webhook
 
-- [ ] **T-166** Create `cli/commands/serve.ts` — HTTP webhook server:
+- [x] **T-166** Create `cli/commands/serve.ts` — HTTP webhook server:
   ```typescript
   // npm run serve -- --nft-id 1
   // POST /trigger  { Authorization: Bearer WEBHOOK_SECRET, body: { nftId } }
@@ -266,13 +266,13 @@
   ```
   - Print startup: `◈ NerOS  Webhook Server  · listening :3000`
   - On trigger: run agent, stream Ink UI inline, return JSON result
-- [ ] **T-167** Add `"serve": "tsx cli/commands/serve.ts"` to `package.json` scripts
-- [ ] **T-168** Expose local server via ngrok tunnel:
+- [x] **T-167** Add `"serve": "tsx cli/commands/serve.ts"` to `package.json` scripts
+- [x] **T-168** Expose local server via ngrok tunnel:
   ```bash
   ngrok http 3000
   ```
   Copy HTTPS URL → use in KeeperHub webhook registration
-- [ ] **T-169** Register second KeeperHub workflow on dashboard:
+- [x] **T-169** Register second KeeperHub workflow on dashboard:
   - **Trigger**: Scheduled, every 5 minutes
   - **Action**: HTTP POST `https://<ngrok-url>/trigger`
   - **Header**: `Authorization: Bearer ${WEBHOOK_SECRET}`

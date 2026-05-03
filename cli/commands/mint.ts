@@ -37,7 +37,7 @@ console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim('Mint new iN
 console.log(`  ${chalk.dim(SEP)}`);
 console.log();
 
-const name = (await rl.question(`  Name your iNFT\n  > `)).trim() || "AlphaBot";
+const name = (await rl.question(`  Name your iNFT\n  > `)).trim() || "NerOSBot";
 
 let riskLevel = 7;
 const riskRaw = (await rl.question(`\n  Risk level  1 – 10\n  > `)).trim();
