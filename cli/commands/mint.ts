@@ -7,6 +7,7 @@ import path from "node:path";
 import chalk from "chalk";
 import { uploadJSON } from "../../0g/client.js";
 import type { NFTPersonality } from "../../0g/schema.js";
+import { createSubdomain, setSubdomainAddr, setSubdomainAvatar } from "../../intelligence/agent/ens.js";
 import { setActiveNftId } from "../session.js";
 import { etherscanTx } from "../link.js";
 import { C, SEP } from "../theme.js";
@@ -23,7 +24,11 @@ if (!privateKey) throw new Error("PRIVATE_KEY not set");
 
 const deploymentsPath = path.resolve("deployments.json");
 if (!fs.existsSync(deploymentsPath)) throw new Error("deployments.json not found — deploy iNFT first");
-const { iNFT } = JSON.parse(fs.readFileSync(deploymentsPath, "utf8")) as { iNFT?: { address: string } };
+const deployments = JSON.parse(fs.readFileSync(deploymentsPath, "utf8")) as {
+  iNFT?: { address: string };
+  PortfolioManager?: { address: string };
+};
+const { iNFT, PortfolioManager: portfolioManagerDeployment } = deployments;
 if (!iNFT?.address) throw new Error("iNFT address not found in deployments.json");
 
 const provider = new ethers.JsonRpcProvider(rpcUrl);
@@ -104,10 +109,34 @@ process.stdout.write(chalk.hex(C.success)('✓') + '\n');
 console.log();
 
 const shortTx = `${receipt.hash.slice(0, 8)}…${receipt.hash.slice(-6)}`;
+const rootName = process.env.ENS_NAME ?? ensName;
+const subdomain = `${tokenId}.${rootName}`;
+const pmAddress = portfolioManagerDeployment?.address ?? "";
+
+// ENS subdomain setup
+process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Creating subdomain')}  `);
+await createSubdomain(tokenId, wallet.address, privateKey);
+process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+
+if (pmAddress) {
+  process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Setting addr record')}  `);
+  await setSubdomainAddr(tokenId, pmAddress, privateKey);
+  process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+}
+
+process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Setting avatar record')}  `);
+await setSubdomainAvatar(tokenId, iNFT.address, privateKey);
+process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+console.log();
 
 console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Personality uploaded')}  ${chalk.dim('CID:')} ${chalk.hex(C.accent)(shortCid)}`);
 console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel(`iNFT #${tokenId} minted`)}  ${chalk.hex(C.accent)(etherscanTx(`${shortTx} ↗`, receipt.hash))}`);
-console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('ENS assigned')}  ${chalk.dim(ensName)}`);
+console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Subdomain created')}  ${chalk.dim(subdomain)}`);
+if (pmAddress) {
+  console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Addr record set')}  ${chalk.dim(`${subdomain} → ${pmAddress}`)}`);
+}
+const avatarUri = `eip155:11155111/erc721:${iNFT.address}/${tokenId}`;
+console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Avatar record set')}  ${chalk.dim(avatarUri)}`);
 console.log();
 
 setActiveNftId(tokenId);

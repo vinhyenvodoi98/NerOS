@@ -7,7 +7,7 @@ import chalk from "chalk";
 import { etherscanTx } from "../../cli/link.js";
 import { loadPersonality } from "./personality.js";
 import { handleToolCall } from "./tools.js";
-import { clearInstruction } from "./ens.js";
+import { clearInstruction, subdomainName } from "./ens.js";
 import type { NFTPersonality } from "../../0g/schema.js";
 import type { PoolConfig } from "./tools.js";
 
@@ -246,7 +246,7 @@ export async function runAgent(nftId: number, poolConfig?: PoolConfig, stream?: 
   const trace: ToolCallRecord[] = [];
   const lastTxHash: { value: string | null } = { value: null };
   const pendingEnsInstruction: { value: string | null } = { value: null };
-  const ensName = process.env.ENS_NAME ?? personality.ensName;
+  const ensName = subdomainName(nftId);
   let decision: "buy" | "sell" | "hold" = "hold";
   let finalReason = "No decision recorded";
 

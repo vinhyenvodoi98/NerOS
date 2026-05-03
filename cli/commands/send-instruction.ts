@@ -2,7 +2,7 @@ import "dotenv/config";
 import chalk from "chalk";
 import { program } from "commander";
 import { loadPersonality } from "../../intelligence/agent/personality.js";
-import { setInstruction } from "../../intelligence/agent/ens.js";
+import { setInstruction, subdomainName } from "../../intelligence/agent/ens.js";
 import { resolveNftId } from "../session.js";
 import { C, SEP } from "../theme.js";
 
@@ -23,7 +23,7 @@ if (!instruction) {
 if (!process.env.PRIVATE_KEY) throw new Error("PRIVATE_KEY not set");
 
 const personality = await loadPersonality(nftId);
-const ensName = process.env.ENS_NAME ?? personality.ensName;
+const ensName = subdomainName(nftId);
 
 // Header
 console.log();

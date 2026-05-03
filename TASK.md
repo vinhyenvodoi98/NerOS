@@ -352,7 +352,7 @@
 
 ### Mint Flow Update
 
-- [ ] **T-186** Update `cli/commands/mint.ts` — after `iNFT.mint()` confirms, call in sequence:
+- [x] **T-186** Update `cli/commands/mint.ts` — after `iNFT.mint()` confirms, call in sequence:
   1. `createSubdomain(tokenId, walletAddress)`
   2. `setSubdomainAddr(tokenId, portfolioManagerAddress)`
   3. `setSubdomainAvatar(tokenId, iNFTAddress)`
@@ -362,7 +362,7 @@
     ✓ Addr record set        1.nerosbot.eth → {pmAddress}
     ✓ Avatar record set      eip155:11155111/erc721:{iNFT}/1
     ```
-- [ ] **T-187** Update `intelligence/agent/ens.ts` — `readInstruction` and `setInstruction` read from subdomain `{tokenId}.nerosbot.eth` instead of `nerosbot.eth` when subdomain exists
+- [x] **T-187** Update `intelligence/agent/ens.ts` — `readInstruction` and `setInstruction` read from subdomain `{tokenId}.nerosbot.eth` instead of `nerosbot.eth` when subdomain exists
 
 ### Verification
 

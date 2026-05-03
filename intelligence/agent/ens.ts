@@ -128,3 +128,8 @@ export async function setSubdomainAvatar(tokenId: number, iNFTAddress: string, p
   const tx = await resolver.setText(node, "avatar", avatarUri);
   await tx.wait();
 }
+
+// T-187: Returns the per-NFT subdomain name, e.g. "1.nerosbot.eth"
+export function subdomainName(tokenId: number): string {
+  return `${tokenId}.${getRootName()}`;
+}
