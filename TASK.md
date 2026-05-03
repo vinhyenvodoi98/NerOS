@@ -322,28 +322,28 @@
 
 ### One-time Root Setup
 
-- [ ] **T-180** Add `ENS_REGISTRY=0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e` to `.env` and `.env.example`
-- [ ] **T-181** Write `scripts/setup-ens-root.ts`:
+- [x] **T-180** Add `ENS_REGISTRY=0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5` to `.env` and `.env.example`
+- [x] **T-181** Write `scripts/setup-ens-root.ts`:
   - Set `nerosbot.eth` addr record → iNFT contract address
   - `resolver.setAddr(namehash("nerosbot.eth"), iNFTAddress)`
   - Log: `✓ nerosbot.eth → {iNFTAddress}`
-- [ ] **T-182** Run `npx hardhat run scripts/setup-ens-root.ts --network sepolia`
+- [x] **T-182** Run `npx hardhat run scripts/setup-ens-root.ts --network sepolia`
   - Verify: `cast call $ENS_RESOLVER "addr(bytes32)(address)" $(cast namehash nerosbot.eth) --rpc-url $RPC_URL`
   - Must return iNFT contract address
 
 ### ENS Helper Functions
 
-- [ ] **T-183** Add to `intelligence/agent/ens.ts`:
+- [x] **T-183** Add to `intelligence/agent/ens.ts`:
   ```ts
   createSubdomain(tokenId: number, ownerAddress: string): Promise<void>
   // ENSRegistry.setSubnodeRecord(parentNode, label, owner, resolver, 0)
   ```
-- [ ] **T-184** Add to `intelligence/agent/ens.ts`:
+- [x] **T-184** Add to `intelligence/agent/ens.ts`:
   ```ts
   setSubdomainAddr(tokenId: number, portfolioManagerAddress: string): Promise<void>
   // resolver.setAddr(namehash(`${tokenId}.nerosbot.eth`), pmAddress)
   ```
-- [ ] **T-185** Add to `intelligence/agent/ens.ts`:
+- [x] **T-185** Add to `intelligence/agent/ens.ts`:
   ```ts
   setSubdomainAvatar(tokenId: number, iNFTAddress: string): Promise<void>
   // resolver.setText(namehash(`${tokenId}.nerosbot.eth`), "avatar",
