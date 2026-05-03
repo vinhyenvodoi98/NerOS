@@ -81,39 +81,45 @@ sequenceDiagram
 
 ---
 
-## 3. Side-by-side Comparison
+## 3. Demo Flow (Direct CLI, no KeeperHub)
 
-```
-CURRENT FLOW
-─────────────────────────────────────────────────────────
-KeeperHub ──► /trigger ──► Agent (AI) ──► execute_trade
-                                               │
-                                    PRIVATE_KEY on local server
-                                               │
-                                               ▼
-                                    PortfolioManager.sol
-                                               │
-                                               ▼
-                                          Uniswap V3
+```mermaid
+sequenceDiagram
+    participant U  as User (CLI)
+    participant AG as Agent (0G Compute AI)
+    participant ZG as 0G Storage
+    participant CG as CoinGecko
+    participant EN as ENS Resolver
+    participant PM as PortfolioManager.sol
+    participant UNI as Uniswap V3
 
+    U->>AG: npm run agent --nft-id 1
 
-IMPROVED FLOW
-─────────────────────────────────────────────────────────
-KeeperHub ──► /trigger ──► Agent (AI) ──► returns params only
-                                               │
-                                    no PRIVATE_KEY needed
-                                               │
-                                               ▼
-                               serve.ts returns swapAction in response
-                                               │
-                                               ▼
-                               KeeperHub Turnkey wallet signs tx
-                                               │
-                                               ▼
-                                    PortfolioManager.sol
-                                               │
-                                               ▼
-                                          Uniswap V3
+    AG->>ZG: read_memory → load personality + trade history
+    ZG-->>AG: { trades: [...], totalPnL, riskTolerance }
+
+    AG->>CG: get_market_data → GET /simple/price
+    CG-->>AG: { ETH: $2401, BTC: $61200 }
+
+    AG->>PM: get_portfolio_balance → getBalance()
+    PM-->>AG: { ETH: 0.12, USDC: 180.00 }
+
+    AG->>EN: read_ens_instructions → resolver.text(namehash, "inft.instruction")
+    EN-->>AG: "be more conservative"
+
+    Note over AG: 0G Compute AI reasons over<br/>memory + market + instruction
+
+    AG->>PM: execute_trade → executeTrade(tokenIn, tokenOut, amountIn, amountOutMin)
+    PM->>UNI: exactInputSingle()
+    UNI-->>PM: amountOut
+    PM-->>AG: { txHash, amountOut }
+
+    AG->>EN: clearInstruction → resolver.setText(..., "")
+
+    AG->>ZG: write_memory → append trade record (append-only)
+    ZG-->>AG: new CID
+
+    AG-->>U: Decision: BUY · tx: 0x4a3f...c291 · Cycle 13 · 4.2s
 ```
 
 ---
