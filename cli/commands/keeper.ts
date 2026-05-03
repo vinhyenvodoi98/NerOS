@@ -18,14 +18,15 @@ const KEEPER_ABI = [
 ];
 
 program
-  .option("--fund [eth]",  "Send ETH to KeeperAdapter (default 0.01)")
-  .option("--withdraw",    "Pull all ETH back from KeeperAdapter")
-  .option("--trigger",     "Force-trigger upkeep immediately (owner only, skips interval)")
-  .option("--stop",        "Pause the keeper — blocks performUpkeep and forceUpkeep")
-  .option("--start",       "Resume the keeper after a --stop")
+  .option("--fund [eth]",     "Send ETH to KeeperAdapter or --address (default 0.01)")
+  .option("--address <addr>", "Target address for --fund instead of KeeperAdapter")
+  .option("--withdraw",       "Pull all ETH back from KeeperAdapter")
+  .option("--trigger",        "Force-trigger upkeep immediately (owner only, skips interval)")
+  .option("--stop",           "Pause the keeper — blocks performUpkeep and forceUpkeep")
+  .option("--start",          "Resume the keeper after a --stop")
   .parse(process.argv);
 
-const opts = program.opts<{ fund?: string | boolean; withdraw?: boolean; trigger?: boolean; stop?: boolean; start?: boolean }>();
+const opts = program.opts<{ fund?: string | boolean; address?: string; withdraw?: boolean; trigger?: boolean; stop?: boolean; start?: boolean }>();
 
 if (!opts.fund && !opts.withdraw && !opts.trigger && !opts.stop && !opts.start) {
   console.error(chalk.hex(C.error)("  Usage: npm run keeper -- --fund [amount]  |  --withdraw  |  --trigger  |  --stop  |  --start"));
@@ -53,21 +54,24 @@ console.log();
 console.log(`  ${chalk.hex(C.brand).bold('◈ NerOS')}  ${chalk.dim(`Keeper · ${action}`)}`);
 console.log(`  ${chalk.dim(SEP)}`);
 console.log(`  ${chalk.dim('KeeperAdapter')}  ${chalk.hex(C.accent)(keeperAddress)}`);
-console.log(`  ${chalk.dim('Wallet       ')}  ${wallet.address}`);
+console.log(`  ${chalk.dim('Signer       ')}  ${wallet.address}`);
+if (opts.address) console.log(`  ${chalk.dim('Fund target  ')}  ${chalk.hex(C.accent)(opts.address)}`);
 console.log();
 
 // ── Fund ──────────────────────────────────────────────────────────────────────
 if (opts.fund !== undefined) {
-  const amountEth = typeof opts.fund === "string" ? opts.fund : "0.01";
+  const amountEth = typeof opts.fund === "string" ? opts.fund : "0.05";
   const amountWei = ethers.parseEther(amountEth);
+  const target    = opts.address ?? keeperAddress;
+  const label     = opts.address ? "target" : "KeeperAdapter";
 
-  const [keeperBal, walletBal] = await Promise.all([
-    provider.getBalance(keeperAddress),
+  const [targetBal, walletBal] = await Promise.all([
+    provider.getBalance(target),
     provider.getBalance(wallet.address),
   ]);
 
-  console.log(`  ${chalk.dim('Keeper balance')}  ${ethers.formatEther(keeperBal)} ETH`);
-  console.log(`  ${chalk.dim('Wallet balance')}  ${ethers.formatEther(walletBal)} ETH`);
+  console.log(`  ${chalk.dim(`${label} balance`).padEnd(22)}  ${ethers.formatEther(targetBal)} ETH`);
+  console.log(`  ${chalk.dim('Signer balance')}  ${ethers.formatEther(walletBal)} ETH`);
   console.log();
 
   if (walletBal < amountWei) {
@@ -75,10 +79,10 @@ if (opts.fund !== undefined) {
     process.exit(1);
   }
 
-  process.stdout.write(`  ${chalk.dim('·')}  Sending ${chalk.bold(amountEth + ' ETH')} to KeeperAdapter…  `);
+  process.stdout.write(`  ${chalk.dim('·')}  Sending ${chalk.bold(amountEth + ' ETH')} to ${label}…  `);
   let tx: ethers.TransactionResponse;
   try {
-    tx = await wallet.sendTransaction({ to: keeperAddress, value: amountWei });
+    tx = await wallet.sendTransaction({ to: target, value: amountWei });
   } catch (err: unknown) {
     process.stdout.write(chalk.hex(C.error)('✗') + '\n\n');
     const msg = err instanceof Error ? err.message : String(err);
@@ -95,12 +99,13 @@ if (opts.fund !== undefined) {
   const receipt = await tx.wait();
   process.stdout.write(chalk.hex(C.success)('✓') + '\n');
 
-  const balanceAfter = await provider.getBalance(keeperAddress);
+  const balanceAfter = await provider.getBalance(target);
   const shortHash    = `${tx.hash.slice(0, 10)}…${tx.hash.slice(-8)}`;
   console.log();
   console.log(`  ${chalk.hex(C.success)('✓')}  Funded successfully`);
+  console.log(`     ${chalk.dim('To      ')}  ${target}`);
   console.log(`     ${chalk.dim('Amount  ')}  ${amountEth} ETH`);
-  console.log(`     ${chalk.dim('Balance ')}  ${ethers.formatEther(keeperBal)} → ${chalk.bold(ethers.formatEther(balanceAfter))} ETH`);
+  console.log(`     ${chalk.dim('Balance ')}  ${ethers.formatEther(targetBal)} → ${chalk.bold(ethers.formatEther(balanceAfter))} ETH`);
   console.log(`     ${chalk.dim('Tx      ')}  ${chalk.hex(C.accent)(etherscanTx(shortHash, tx.hash))} ↗`);
   console.log(`     ${chalk.dim('Block   ')}  ${receipt?.blockNumber}`);
   console.log();

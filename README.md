@@ -193,6 +193,59 @@ npm run agent -- --nft-id 1 \
 
 Token symbols provided via `--token-a` / `--token-b` are passed to the AI so it knows which symbol names to use in `execute_trade` calls. They override the defaults loaded from `deployments.json`.
 
+### Step 8 — Set up KeeperHub automation (24/7 upkeep)
+
+KeeperHub calls `performUpkeep` on your `KeeperAdapter` contract on a schedule, keeping the agent running around the clock. Two sub-steps:
+
+#### 8a — Deploy the KeeperAdapter contract
+
+```bash
+npx hardhat run scripts/deploy-keeper.ts --network sepolia
+```
+
+Writes the `KeeperAdapter` address to `deployments.json`.
+
+#### 8b — Create the KeeperHub workflow
+
+1. Go to [app.keeperhub.com](https://app.keeperhub.com) and sign in.
+2. Click **New Workflow**.
+3. Add a **Schedule** trigger: `*/5 * * * *` (every 5 minutes).
+4. Add a **Smart Contract Call** action:
+   - **Network**: Ethereum Sepolia
+   - **Contract address**: value of `KeeperAdapter.address` from `deployments.json`
+   - **ABI**: paste the `performUpkeep(bytes)` fragment — `[{"inputs":[{"name":"","type":"bytes"}],"name":"performUpkeep","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
+   - **Function**: `performUpkeep`
+   - **calldata**: `0x`
+5. Save and copy your **API key** from the dashboard → add it to `.env` as `KEEPERHUB_API_KEY`.
+
+#### 8c — Fund the KeeperHub Turnkey wallet
+
+KeeperHub uses a dedicated Turnkey wallet per workflow to pay for gas. Find the wallet address in the workflow settings page, then fund it:
+
+```bash
+# Fund the KeeperHub Turnkey wallet (replace with the address from your dashboard)
+npm run keeper -- --fund 0.05 --address 0xYourTurnkeyWalletAddress
+
+# Fund KeeperAdapter itself (so it can call forceUpkeep if needed)
+npm run keeper -- --fund 0.05
+```
+
+Verify both show a non-zero balance before proceeding.
+
+#### 8d — Verify end-to-end
+
+Run the watch listener in one terminal, then wait up to 5 minutes for KeeperHub to fire automatically:
+
+```bash
+# Terminal A — watch for on-chain triggers
+npm run watch -- --nft-id 1
+
+# Terminal B — or force an immediate trigger to test right now
+npm run keeper -- --trigger
+```
+
+A successful run shows `[Keeper] Triggered` in the watch log and a green ✓ in the KeeperHub job history.
+
 ---
 
 ## Demo Script (~3 min)
@@ -255,6 +308,15 @@ npm run agent -- --nft-id 1 --pool-fee 3000 \
 npm run history -- --nft-id 1                                  # print trade history from 0G
 npm run send-instruction -- --nft-id 1 "be conservative"       # write ENS instruction
 npm run watch -- --nft-id 1                                    # keeper watcher, autonomous loop
+
+# ── KeeperHub ─────────────────────────────────────────────────────────────────
+npx hardhat run scripts/deploy-keeper.ts --network sepolia     # deploy KeeperAdapter
+npm run keeper -- --fund 0.05                                  # fund KeeperAdapter with ETH
+npm run keeper -- --fund 0.05 --address 0xTurnkeyWallet        # fund KeeperHub Turnkey wallet
+npm run keeper -- --trigger                                    # manually fire performUpkeep now
+npm run keeper -- --stop                                       # pause keeper on-chain
+npm run keeper -- --start                                      # resume keeper on-chain
+npm run keeper -- --withdraw                                   # pull all ETH back from KeeperAdapter
 ```
 
 ---

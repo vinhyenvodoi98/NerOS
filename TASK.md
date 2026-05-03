@@ -241,15 +241,15 @@
 
 ### Level 1 — KeeperHub as On-Chain Scheduler
 
-- [ ] **T-163** Register KeeperHub workflow on [app.keeperhub.com](https://app.keeperhub.com) dashboard:
+- [x] **T-163** Register KeeperHub workflow on [app.keeperhub.com](https://app.keeperhub.com) dashboard:
   - **Trigger**: Scheduled, every 5 minutes (cron `*/5 * * * *`)
   - **Action**: Smart Contract Call → `KeeperAdapter.performUpkeep(bytes "0x")` on Sepolia
   - **Contract**: address from `deployments.json`
   - Save Job URL → record in TASK.md deployed addresses table
-- [ ] **T-164** Fund KeeperHub Turnkey wallet with Sepolia ETH for gas:
+- [x] **T-164** Fund KeeperHub Turnkey wallet with Sepolia ETH for gas:
   - Get wallet address from KeeperHub dashboard → send 0.05 ETH
   - Confirm wallet shows balance in KeeperHub UI
-- [ ] **T-165** Verify Level 1 works end-to-end:
+- [x] **T-165** Verify Level 1 works end-to-end:
   - `npm run watch -- --nft-id 1` running in background
   - Wait for KeeperHub to auto-trigger `performUpkeep` (or advance clock / use manual trigger)
   - Confirm `UpkeepTriggered` event appears in watch.tsx Activity log
