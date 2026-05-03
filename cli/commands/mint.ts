@@ -115,28 +115,38 @@ const pmAddress = portfolioManagerDeployment?.address ?? "";
 
 // ENS subdomain setup
 process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Creating subdomain')}  `);
-await createSubdomain(tokenId, wallet.address, privateKey);
-process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+const subdomainCreated = await createSubdomain(tokenId, wallet.address, privateKey);
+if (!subdomainCreated) {
+  process.stdout.write(chalk.yellow('already registered') + '\n');
+} else {
+  process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+}
 
-if (pmAddress) {
+if (pmAddress && subdomainCreated) {
   process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Setting addr record')}  `);
   await setSubdomainAddr(tokenId, pmAddress, privateKey);
   process.stdout.write(chalk.hex(C.success)('✓') + '\n');
 }
 
-process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Setting avatar record')}  `);
-await setSubdomainAvatar(tokenId, iNFT.address, privateKey);
-process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+if (subdomainCreated) {
+  process.stdout.write(`  ${chalk.dim('·')}  ${padLabel('Setting avatar record')}  `);
+  await setSubdomainAvatar(tokenId, iNFT.address, privateKey);
+  process.stdout.write(chalk.hex(C.success)('✓') + '\n');
+}
 console.log();
 
 console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Personality uploaded')}  ${chalk.dim('CID:')} ${chalk.hex(C.accent)(shortCid)}`);
 console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel(`iNFT #${tokenId} minted`)}  ${chalk.hex(C.accent)(etherscanTx(`${shortTx} ↗`, receipt.hash))}`);
-console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Subdomain created')}  ${chalk.dim(subdomain)}`);
-if (pmAddress) {
-  console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Addr record set')}  ${chalk.dim(`${subdomain} → ${pmAddress}`)}`);
+if (subdomainCreated) {
+  console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Subdomain created')}  ${chalk.dim(subdomain)}`);
+  if (pmAddress) {
+    console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Addr record set')}  ${chalk.dim(`${subdomain} → ${pmAddress}`)}`);
+  }
+  const avatarUri = `eip155:11155111/erc721:${iNFT.address}/${tokenId}`;
+  console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Avatar record set')}  ${chalk.dim(avatarUri)}`);
+} else {
+  console.log(`  ${chalk.yellow('⚠')}  ${padLabel('Subdomain skipped')}  ${chalk.dim(`${subdomain} already registered`)}`);
 }
-const avatarUri = `eip155:11155111/erc721:${iNFT.address}/${tokenId}`;
-console.log(`  ${chalk.hex(C.success)('✓')}  ${padLabel('Avatar record set')}  ${chalk.dim(avatarUri)}`);
 console.log();
 
 setActiveNftId(tokenId);

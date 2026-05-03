@@ -16,6 +16,7 @@ const RESOLVER_ABI = [
 const REGISTRY_ABI = [
   "function setSubnodeRecord(bytes32 node, bytes32 label, address owner, address resolver, uint64 ttl)",
   "function resolver(bytes32 node) view returns (address)",
+  "function owner(bytes32 node) view returns (address)",
 ];
 
 // When ENS_RESOLVER is set, the name lives on Sepolia ENS testnet — call it directly.
@@ -74,8 +75,9 @@ export async function clearInstruction(ensName: string, privateKey: string): Pro
   await setInstruction(ensName, "", privateKey);
 }
 
-// T-183: Create subdomain {tokenId}.{root} in the ENS Registry
-export async function createSubdomain(tokenId: number, ownerAddress: string, privateKey: string): Promise<void> {
+// T-183: Create subdomain {tokenId}.{root} in the ENS Registry.
+// Exits early with a message if the subdomain is already registered.
+export async function createSubdomain(tokenId: number, ownerAddress: string, privateKey: string): Promise<boolean> {
   if (!process.env.RPC_URL) throw new Error("RPC_URL not set");
   if (!process.env.ENS_RESOLVER) throw new Error("ENS_RESOLVER not set");
 
@@ -85,6 +87,14 @@ export async function createSubdomain(tokenId: number, ownerAddress: string, pri
   const registry = new ethers.Contract(registryAddress, REGISTRY_ABI, wallet);
 
   const rootName = getRootName();
+  const subdomainNode = ethers.namehash(`${tokenId}.${rootName}`);
+
+  const existingOwner: string = await registry.owner(subdomainNode);
+  if (existingOwner !== ethers.ZeroAddress) {
+    console.log(`  ⚠  Subdomain ${tokenId}.${rootName} already registered (owner: ${existingOwner})`);
+    return false;
+  }
+
   const parentNode = ethers.namehash(rootName);
   const label = ethers.keccak256(ethers.toUtf8Bytes(tokenId.toString()));
 
@@ -96,6 +106,7 @@ export async function createSubdomain(tokenId: number, ownerAddress: string, pri
     0,
   );
   await tx.wait();
+  return true;
 }
 
 // T-184: Set addr record on subdomain {tokenId}.{root} → portfolioManagerAddress

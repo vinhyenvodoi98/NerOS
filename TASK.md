@@ -366,8 +366,8 @@
 
 ### Verification
 
-- [ ] **T-188** Run `npm run mint` → confirm 3 new ENS txs appear on Sepolia Etherscan
-- [ ] **T-189** Verify subdomain resolves:
+- [x] **T-188** Run `npm run mint` → confirm 3 new ENS txs appear on Sepolia Etherscan
+- [x] **T-189** Verify subdomain resolves:
   ```bash
   # addr record
   cast call $ENS_RESOLVER "addr(bytes32)(address)" \
@@ -379,8 +379,8 @@
     $(cast namehash 1.nerosbot.eth) "avatar" --rpc-url $RPC_URL
   # → "eip155:11155111/erc721:0x.../1"
   ```
-- [ ] **T-190** Confirm `npm run send-instruction -- --nft-id 1 "..."` writes to `1.nerosbot.eth` (not `nerosbot.eth`)
-- [ ] **T-191** Confirm `npm run agent -- --nft-id 2` reads from `2.nerosbot.eth` — no instruction collision with NFT #1
+- [x] **T-190** Confirm `npm run send-instruction -- --nft-id 1 "..."` writes to `1.nerosbot.eth` (not `nerosbot.eth`)
+- [x] **T-191** Confirm `npm run agent -- --nft-id 2` reads from `2.nerosbot.eth` — no instruction collision with NFT #1
 
 ---
 
