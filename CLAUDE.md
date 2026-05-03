@@ -125,7 +125,7 @@ $ npm run mint                              $ npm run watch -- --nft-id 1
   ✓ ENS: alpha-nft.eth assigned
 
 $ npm run agent -- --nft-id 1
-  ╭─ AlphaBot · alpha-nft.eth ──╮            [Keeper] Triggered at 14:23:05
+  ╭─ NerOSBot · alpha-nft.eth ──╮            [Keeper] Triggered at 14:23:05
   │ Risk 7/10 · aggressive      │            [Keeper] Running agent...
   ╰─────────────────────────────╯
   ● read_memory     ✓ 12 trades · +$187

@@ -66,7 +66,7 @@ function toolSummary(tool: string, args: Record<string, unknown>, result: unknow
   return undefined;
 }
 
-interface ToolCallRecord {
+export interface ToolCallRecord {
   tool: string;
   args: unknown;
   result: unknown;

@@ -53,7 +53,7 @@ No borders except the outermost header. Separators are thin `─` lines in dim, 
 ```
   ◈ NerOS                                               alpha-nft.eth
   ─────────────────────────────────────────────────────────────────────
-  AlphaBot   Risk 7/10 · aggressive   Cycle 13   0G: bafk3x…7z ↗
+  NerOSBot   Risk 7/10 · aggressive   Cycle 13   0G: bafk3x…7z ↗
 
 
   Steps
@@ -80,7 +80,7 @@ No borders except the outermost header. Separators are thin `─` lines in dim, 
   ─────────────────────────────────────────────────────────────────────
 
   Name your iNFT
-  > AlphaBot
+  > NerOSBot
 
   Risk level  1 – 10
   > 7
@@ -110,7 +110,7 @@ No borders except the outermost header. Separators are thin `─` lines in dim, 
 ```
   ◈ NerOS                                               alpha-nft.eth
   ─────────────────────────────────────────────────────────────────────
-  AlphaBot   13 trades   +$187.40 total P&L
+  NerOSBot   13 trades   +$187.40 total P&L
 
 
   Trade History
@@ -131,7 +131,7 @@ No borders except the outermost header. Separators are thin `─` lines in dim, 
 ```
   ◈ NerOS   Keeper Watcher                              alpha-nft.eth
   ─────────────────────────────────────────────────────────────────────
-  AlphaBot   Listening for triggers…   Block 8,241,034
+  NerOSBot   Listening for triggers…   Block 8,241,034
 
 
   Activity
@@ -606,8 +606,8 @@ Changes: icon moves left (scan order matches reading order); fixed label column 
 BEFORE                              AFTER
 ────────────────────────────────    ────────────────────────────────
 ╭─────────────────────────────╮     ◈ NerOS                alpha-nft.eth
-│ AlphaBot · alpha-nft.eth    │     ──────────────────────────────────
-│ Risk 7/10 · aggressive · …  │     AlphaBot   Risk 7/10   Cycle 13
+│ NerOSBot · alpha-nft.eth    │     ──────────────────────────────────
+│ Risk 7/10 · aggressive · …  │     NerOSBot   Risk 7/10   Cycle 13
 ╰─────────────────────────────╯
 ```
 

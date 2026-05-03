@@ -1,9 +1,12 @@
 import "dotenv/config";
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { ethers } from "ethers";
 import React from "react";
 import { render } from "ink";
 import { program } from "commander";
-import { runAgent } from "../../intelligence/agent/strategy.js";
+import { runAgent, type ToolCallRecord } from "../../intelligence/agent/strategy.js";
 import { loadPersonality } from "../../intelligence/agent/personality.js";
 import { loadMemory } from "../../intelligence/agent/memory.js";
 import { resolveNftId } from "../session.js";
@@ -22,13 +25,80 @@ const defaultNftId = resolveNftId(opts.nftId);
 const PORT   = parseInt(process.env.WEBHOOK_PORT ?? "3000", 10);
 const SECRET = process.env.WEBHOOK_SECRET ?? "";
 
+let agentRunning = false;
+
 function nowTime(): string {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 }
 
-let agentRunning = false;
+interface SwapAction {
+  contractAddress: string;
+  functionName: string;
+  abi: string[];
+  args: unknown[];
+  poolAddress: string;
+  poolFee: number;
+}
 
-async function handleAgentRun(nftId: number): Promise<{ decision: string; reason: string; txHash: string | null }> {
+// T-172: Build KeeperHub web3/write-contract call data for PortfolioManager.executeTrade()
+// using the custom pool from deployments.json. This lets KeeperHub execute the swap
+// via its Turnkey wallet without PRIVATE_KEY on the local server.
+function buildSwapAction(trace: ToolCallRecord[], nftId: number): SwapAction | null {
+  let deployments: Record<string, { address?: string; fee?: number }>;
+  try {
+    deployments = JSON.parse(fs.readFileSync(path.resolve("deployments.json"), "utf8"));
+  } catch {
+    return null;
+  }
+
+  const pmAddress = deployments.PortfolioManager?.address;
+  const poolAddress = (deployments.UniswapPool as { address?: string } | undefined)?.address ?? "";
+  const poolFee = (deployments.UniswapPool as { fee?: number } | undefined)?.fee ?? 3000;
+
+  if (!pmAddress) return null;
+
+  const tokenMap: Record<string, { address: string; decimals: number }> = {};
+  if (deployments.MockUSD?.address) tokenMap["USDC"] = { address: deployments.MockUSD.address, decimals: 18 };
+  if (deployments.MockETH?.address) {
+    tokenMap["WETH"] = { address: deployments.MockETH.address, decimals: 18 };
+    tokenMap["ETH"]  = { address: deployments.MockETH.address, decimals: 18 };
+  }
+
+  const tradeCall = trace.find((t) => t.tool === "execute_trade");
+  if (!tradeCall) return null;
+
+  const tradeArgs = tradeCall.args as { token_in?: string; token_out?: string; amount_in?: string };
+  const tokenInKey  = (tradeArgs.token_in  ?? "").toUpperCase();
+  const tokenOutKey = (tradeArgs.token_out ?? "").toUpperCase();
+  const tokenIn  = tokenMap[tokenInKey];
+  const tokenOut = tokenMap[tokenOutKey];
+  if (!tokenIn || !tokenOut) return null;
+
+  const amountIn = ethers.parseUnits(
+    parseFloat(tradeArgs.amount_in ?? "0").toFixed(tokenIn.decimals),
+    tokenIn.decimals,
+  );
+
+  return {
+    contractAddress: pmAddress,
+    functionName: "executeTrade",
+    abi: [
+      "function executeTrade(uint256 nftId, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint24 poolFee) external returns (uint256 amountOut)",
+    ],
+    args: [nftId, tokenIn.address, tokenOut.address, amountIn.toString(), "1", poolFee],
+    poolAddress,
+    poolFee,
+  };
+}
+
+interface AgentRunResult {
+  decision: string;
+  reason: string;
+  txHash: string | null;
+  swapAction: SwapAction | null;
+}
+
+async function handleAgentRun(nftId: number): Promise<AgentRunResult> {
   const personality = await loadPersonality(nftId);
   let cycleCount = 1;
   try {
@@ -42,11 +112,7 @@ async function handleAgentRun(nftId: number): Promise<{ decision: string; reason
   );
 
   const start = Date.now();
-  let result: { decision: string; reason: string; txHash: string | null } = {
-    decision: "hold",
-    reason: "",
-    txHash: null,
-  };
+  let result: AgentRunResult = { decision: "hold", reason: "", txHash: null, swapAction: null };
 
   await new Promise<void>((resolve) => {
     runAgent(nftId, undefined, {
@@ -54,7 +120,10 @@ async function handleAgentRun(nftId: number): Promise<{ decision: string; reason
       toolDone:  (t, s) => stream.toolDone(t, s),
       toolError: (t, e) => stream.toolError(t, e),
     }).then((r) => {
-      result = r;
+      const swapAction = ["buy", "sell"].includes(r.decision)
+        ? buildSwapAction(r.trace, nftId)
+        : null;
+      result = { decision: r.decision, reason: r.reason, txHash: r.txHash, swapAction };
       const elapsed = (Date.now() - start) / 1000;
       stream.decision(r.decision, r.reason, r.txHash, cycleCount, elapsed);
       resolve();
@@ -109,7 +178,7 @@ const server = http.createServer(async (req, res) => {
     const result = await handleAgentRun(nftId);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(result));
-    console.log(`  ${chalk.dim(nowTime())}   ${chalk.hex(C.success)("DONE")}      decision: ${result.decision}`);
+    console.log(`  ${chalk.dim(nowTime())}   ${chalk.hex(C.success)("DONE")}      decision: ${result.decision}${result.swapAction ? " · swapAction included" : ""}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     res.writeHead(500, { "Content-Type": "application/json" });

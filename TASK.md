@@ -194,7 +194,7 @@
 ## DAY 5 — Demo Prep
 
 ### Pre-seed Demo State
-- [ ] **T-120** Seed "AlphaBot" with 10+ trade records in 0G memory (script: `scripts/seed-memory.ts`)
+- [ ] **T-120** Seed "NerOSBot" with 10+ trade records in 0G memory (script: `scripts/seed-memory.ts`)
 - [ ] **T-121** Confirm total P&L shows +$150 to +$200
 - [ ] **T-122** All seed txHash values are real Sepolia transactions
 - [ ] **T-123** Fund demo wallet: 0.5 ETH + 200 USDC on Sepolia
@@ -277,7 +277,7 @@
   - **Action**: HTTP POST `https://<ngrok-url>/trigger`
   - **Header**: `Authorization: Bearer ${WEBHOOK_SECRET}`
   - **Body**: `{ "nftId": 1 }`
-- [ ] **T-170** Test Level 2 end-to-end:
+- [x] **T-170** Test Level 2 end-to-end:
   - `npm run serve -- --nft-id 1` running (ngrok tunnel active)
   - Wait for KeeperHub to POST `/trigger`
   - Confirm agent runs, decision returned in HTTP response
@@ -286,17 +286,20 @@
 
 ### Level 3 — KeeperHub Uniswap Execution (Stretch)
 
-- [ ] **T-171** Research KeeperHub Uniswap action type:
-  - Check app.keeperhub.com docs for native swap action schema
-  - Confirm Sepolia WETH/USDC pool is supported
-- [ ] **T-172** Update `serve.ts` response format for Uniswap action:
+- [x] **T-171** Research KeeperHub Uniswap action type:
+  - KeeperHub has no native Uniswap swap action for custom token pools (only pool/position inspection)
+  - Use `web3/write-contract` action targeting `PortfolioManager.executeTrade()` with pool from `deployments.json`
+  - Custom pool `0x2c96564D7b20AFb9cd22281961ed64855928b279` (MockUSD/MockETH, fee 3000) — pass token addresses directly as args
+- [x] **T-172** Update `serve.ts` response format for Uniswap action:
+  - When decision is buy/sell, response now includes `swapAction` built from `deployments.json` pool config:
   ```json
   {
-    "action": "swap",
-    "tokenIn": "USDC",
-    "tokenOut": "WETH",
-    "amountIn": "20000000",
-    "slippageBps": 50
+    "contractAddress": "<PortfolioManager>",
+    "functionName": "executeTrade",
+    "abi": ["..."],
+    "args": [nftId, tokenInAddress, tokenOutAddress, amountIn, "1", poolFee],
+    "poolAddress": "0x2c96564D7b20AFb9cd22281961ed64855928b279",
+    "poolFee": 3000
   }
   ```
 - [ ] **T-173** Register KeeperHub "Uniswap swap" action triggered by webhook response

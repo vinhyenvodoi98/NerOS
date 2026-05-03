@@ -94,7 +94,7 @@ contract iNFT is ERC721, Ownable {
 ```typescript
 interface NFTPersonality {
   nftId: number;
-  name: string;           // "AlphaBot"
+  name: string;           // "NerOSBot"
   ensName: string;        // "alpha-nft.eth"
   riskTolerance: number;  // 1-10
   style: "aggressive" | "balanced" | "conservative";
@@ -382,7 +382,7 @@ contract KeeperAdapter {
 **Components**:
 ```tsx
 // cli/components/Header.tsx
-// ╭─ AlphaBot · alpha-nft.eth ─────────────────────────────╮
+// ╭─ NerOSBot · alpha-nft.eth ─────────────────────────────╮
 // │  Risk 7/10 · aggressive · 0G: bafk...x7z ↗            │
 // ╰─────────────────────────────────────────────────────────╯
 
@@ -488,7 +488,7 @@ Response: { decision: "buy", reason: "...", txHash: "0x..." }
 **Goal**: Rehearsed, pre-seeded, no surprises.
 
 #### 5.1 Pre-seed Demo State
-- iNFT "AlphaBot" with 10+ historical trades in 0G memory
+- iNFT "NerOSBot" with 10+ historical trades in 0G memory
 - Total P&L shows +$187-200
 - All txHash values point to real Sepolia transactions
 
