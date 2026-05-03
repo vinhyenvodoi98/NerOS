@@ -224,6 +224,95 @@
 
 ---
 
+## DAY 6 — KeeperHub Integration (ETHGlobal Prize Track)
+
+> **Goal**: Qualify for ETHGlobal KeeperHub prize by integrating via KeeperHub's own platform — not just Chainlink-compatible interface. Target: "Most Innovative Application" ($2,500).
+
+### Prerequisites
+
+- [x] **T-160** Get `KEEPERHUB_API_KEY` from [app.keeperhub.com](https://app.keeperhub.com) → add to `.env`
+- [x] **T-161** Add `WEBHOOK_SECRET` (random 32-char string) and `WEBHOOK_PORT=3000` to `.env` and `.env.example`
+- [x] **T-162** Redeploy `KeeperAdapter.sol` — current on-chain contract is stale (missing `receive()`, `setActive()`, `withdraw()`):
+  ```bash
+  npx hardhat run scripts/deploy-keeper.ts --network sepolia
+  npm run keeper -- --start
+  ```
+  Update `deployments.json` + TASK.md deployed addresses table.
+
+### Level 1 — KeeperHub as On-Chain Scheduler
+
+- [ ] **T-163** Register KeeperHub workflow on [app.keeperhub.com](https://app.keeperhub.com) dashboard:
+  - **Trigger**: Scheduled, every 5 minutes (cron `*/5 * * * *`)
+  - **Action**: Smart Contract Call → `KeeperAdapter.performUpkeep(bytes "0x")` on Sepolia
+  - **Contract**: address from `deployments.json`
+  - Save Job URL → record in TASK.md deployed addresses table
+- [ ] **T-164** Fund KeeperHub Turnkey wallet with Sepolia ETH for gas:
+  - Get wallet address from KeeperHub dashboard → send 0.05 ETH
+  - Confirm wallet shows balance in KeeperHub UI
+- [ ] **T-165** Verify Level 1 works end-to-end:
+  - `npm run watch -- --nft-id 1` running in background
+  - Wait for KeeperHub to auto-trigger `performUpkeep` (or advance clock / use manual trigger)
+  - Confirm `UpkeepTriggered` event appears in watch.tsx Activity log
+  - KeeperHub job history shows green ✓ for the run
+
+### Level 2 — KeeperHub HTTP Webhook
+
+- [ ] **T-166** Create `cli/commands/serve.ts` — HTTP webhook server:
+  ```typescript
+  // npm run serve -- --nft-id 1
+  // POST /trigger  { Authorization: Bearer WEBHOOK_SECRET, body: { nftId } }
+  // Response: { decision, reason, txHash }
+  // Uses node:http (no framework dep) — validate Bearer token before running agent
+  ```
+  - Print startup: `◈ NerOS  Webhook Server  · listening :3000`
+  - On trigger: run agent, stream Ink UI inline, return JSON result
+- [ ] **T-167** Add `"serve": "tsx cli/commands/serve.ts"` to `package.json` scripts
+- [ ] **T-168** Expose local server via ngrok tunnel:
+  ```bash
+  ngrok http 3000
+  ```
+  Copy HTTPS URL → use in KeeperHub webhook registration
+- [ ] **T-169** Register second KeeperHub workflow on dashboard:
+  - **Trigger**: Scheduled, every 5 minutes
+  - **Action**: HTTP POST `https://<ngrok-url>/trigger`
+  - **Header**: `Authorization: Bearer ${WEBHOOK_SECRET}`
+  - **Body**: `{ "nftId": 1 }`
+- [ ] **T-170** Test Level 2 end-to-end:
+  - `npm run serve -- --nft-id 1` running (ngrok tunnel active)
+  - Wait for KeeperHub to POST `/trigger`
+  - Confirm agent runs, decision returned in HTTP response
+  - KeeperHub job history shows green ✓ with response body
+  - `watch.tsx` no longer needed for this path
+
+### Level 3 — KeeperHub Uniswap Execution (Stretch)
+
+- [ ] **T-171** Research KeeperHub Uniswap action type:
+  - Check app.keeperhub.com docs for native swap action schema
+  - Confirm Sepolia WETH/USDC pool is supported
+- [ ] **T-172** Update `serve.ts` response format for Uniswap action:
+  ```json
+  {
+    "action": "swap",
+    "tokenIn": "USDC",
+    "tokenOut": "WETH",
+    "amountIn": "20000000",
+    "slippageBps": 50
+  }
+  ```
+- [ ] **T-173** Register KeeperHub "Uniswap swap" action triggered by webhook response
+  - KeeperHub's Turnkey wallet signs the Uniswap tx
+  - No `PRIVATE_KEY` required on local server for trade execution
+- [ ] **T-174** Test Level 3 swap: confirm KeeperHub-signed tx appears on Sepolia Etherscan
+
+### Day 6 Integration Check
+
+- [ ] **T-175** KeeperHub dashboard shows ≥1 successful automated job run (screenshot for submission)
+- [ ] **T-176** `npm run watch` shows trigger fired by KeeperHub (not manual `keeper --trigger`)
+- [ ] **T-177** KeeperHub Job URL recorded in `deployments.json` under key `KeeperHubJobUrl`
+- [ ] **T-178** (Level 2) `npm run serve` handles full cycle: webhook → agent → response, no `watch.tsx`
+
+---
+
 ## Work Allocation (2-Person Team)
 
 | Person | Days | Tasks |
@@ -233,6 +322,8 @@
 | **Dev A** | Day 4 | T-104~108 (CLI commands) |
 | **Dev B** | Day 4 | T-100~103 (Ink components) |
 | **Both** | Day 5 | T-120~153 |
+| **Dev A** | Day 6 | T-162~165, T-171~174 (redeploy + Level 3) |
+| **Dev B** | Day 6 | T-160~161, T-166~170, T-175~178 (webhook server + Level 2) |
 
 ---
 
@@ -258,4 +349,6 @@ A task is done when:
 | ENS Name | `nerosbot.eth` |
 | Personality CID (0G) | `TBD` |
 | Memory CID (0G) | `TBD` |
-| KeeperHub Job URL | `TBD` |
+| KeeperHub Job URL (Level 1) | `TBD` |
+| KeeperHub Job URL (Level 2) | `TBD` |
+| KeeperHub Wallet Address | `TBD` |

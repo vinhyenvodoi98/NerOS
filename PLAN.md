@@ -411,6 +411,79 @@ contract KeeperAdapter {
 
 ---
 
+### Phase 6 — KeeperHub Integration (ETHGlobal Prize Track)
+**Goal**: Replace polling-based `watch.tsx` with KeeperHub as the authoritative scheduler and executor. Target: ETHGlobal KeeperHub "Most Innovative Application" prize ($2,500).
+
+#### Why KeeperHub matters (not just Chainlink)
+The current `KeeperAdapter.sol` uses the Chainlink-compatible `checkUpkeep`/`performUpkeep` interface, but the ETHGlobal prize specifically requires integration via **KeeperHub's own platform** (app.keeperhub.com) — which provides a non-custodial Turnkey wallet, native Uniswap support, cron scheduling, HTTP actions, and an MCP server.
+
+#### Architecture — 3 integration levels
+
+```
+Level 1 (Must)          Level 2 (Better)         Level 3 (Stretch)
+──────────────          ────────────────          ─────────────────
+KeeperHub               KeeperHub                 KeeperHub
+  Cron (5 min)            Cron (5 min)              Cron (5 min)
+  ↓                       ↓                         ↓
+  performUpkeep()         HTTP POST /trigger        HTTP POST /trigger
+  on KeeperAdapter        (webhook server)          (webhook server)
+  ↓                       ↓                         ↓
+  UpkeepTriggered         runAgent()                runAgent()
+  event on-chain          directly                  ↓
+  ↓                       (no watch.tsx needed)     AI decides BUY/SELL
+  watch.tsx picks up                                ↓
+  event → runs agent                                KeeperHub Uniswap
+                                                    action executes swap
+                                                    (no local PRIVATE_KEY!)
+```
+
+#### 6.1 Level 1 — KeeperHub as on-chain scheduler (replaces manual `keeper --trigger`)
+
+- Get KEEPERHUB_API_KEY from app.keeperhub.com
+- Register workflow on KeeperHub dashboard:
+  - **Trigger**: Scheduled, every 5 minutes
+  - **Action**: Smart Contract Call → `KeeperAdapter.performUpkeep(bytes "")` on Sepolia
+  - Fund KeeperHub wallet with Sepolia ETH for gas
+- `watch.tsx` continues to poll for `UpkeepTriggered` event (already implemented)
+- **Demo**: Show KeeperHub dashboard job history alongside `watch.tsx` output
+
+#### 6.2 Level 2 — KeeperHub HTTP webhook (removes local `watch.tsx` dependency)
+
+```typescript
+// cli/commands/serve.ts — new command: npm run serve -- --nft-id 1
+// HTTP server receives POST /trigger from KeeperHub → runs agent → returns JSON
+
+POST /trigger
+  Authorization: Bearer WEBHOOK_SECRET
+  Body: { nftId: 1 }
+
+Response: { decision: "buy", reason: "...", txHash: "0x..." }
+```
+
+- Register second KeeperHub workflow:
+  - **Trigger**: Scheduled, every 5 minutes
+  - **Action**: HTTP POST to `https://<ngrok or VPS>/trigger`
+  - Header: `Authorization: Bearer ${WEBHOOK_SECRET}`
+  - Body: `{ "nftId": 1 }`
+- `npm run serve` starts the webhook server, listens on WEBHOOK_PORT
+- Agent runs on demand without `watch.tsx` polling
+
+#### 6.3 Level 3 — KeeperHub Uniswap execution (no local private key for trades)
+
+- KeeperHub's Turnkey wallet executes the Uniswap swap
+- Flow: agent returns `{ action: "buy", tokenIn: "USDC", tokenOut: "ETH", amount: "20" }`
+- Webhook server calls KeeperHub API → triggers a "swap" workflow
+- KeeperHub signs the tx from its HSM-backed wallet
+- **Eliminates PRIVATE_KEY requirement** for trade execution
+
+#### 6.4 Checkpoint
+- KeeperHub dashboard shows ≥1 successful automated trigger
+- Agent runs without manual `keeper --trigger`
+- (Level 2) `npm run serve` handles full cycle without `watch.tsx`
+- KeeperHub Job URL recorded in `deployments.json` + TASK.md
+
+---
+
 ### Phase 5 — Demo Prep (Day 5)
 **Goal**: Rehearsed, pre-seeded, no surprises.
 
@@ -443,7 +516,9 @@ contract KeeperAdapter {
 |---|---|---|
 | 0G SDK API breaking / undocumented | High | Timebox 4h Day 1; fallback to IPFS if 0G upload fails |
 | Uniswap no testnet liquidity | Medium | Hardhat mainnet fork for tests; use smallest swap amounts in demo |
-| KeeperHub registration slow | Medium | `npm run agent -- --force` skips Keeper for demo |
+| KeeperHub registration slow | Medium | Level 1 takes <10 min on dashboard; Level 2 needs ngrok or VPS |
+| KeeperHub webhook unreachable | Medium | Use ngrok tunnel for demo; `npm run keeper -- --trigger` as fallback |
+| KeeperHub wallet underfunded | High | Fund KeeperHub Turnkey wallet with 0.05 ETH Sepolia before demo |
 | 0G Compute latency > 5s | Low | Stream response; Ink spinner shows progress |
 | 0G Compute model lacks tool-use support | Medium | Fallback: parse JSON from raw completion; wrap in manual tool-call loop |
 | Demo wallet underfunded | High | Pre-fund 2 wallets (0.5 ETH + 200 USDC each) day before |

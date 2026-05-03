@@ -37,7 +37,9 @@ NerOS/
 │       ├── agent.ts              # npm run agent
 │       ├── history.ts            # npm run history
 │       ├── send-instruction.ts   # npm run send-instruction
-│       └── watch.ts              # npm run watch
+│       ├── watch.ts              # npm run watch (polls on-chain events)
+│       ├── serve.ts              # npm run serve (KeeperHub HTTP webhook)
+│       └── keeper.ts             # npm run keeper --fund/--withdraw/--trigger/--stop/--start
 ├── 0g/
 │   ├── schema.ts                 # NFTPersonality, TradeMemory interfaces
 │   └── client.ts                 # uploadJSON / downloadJSON wrappers
@@ -59,7 +61,7 @@ NerOS/
 | Storage | 0G Decentralized Storage Network |
 | DEX | Uniswap V3 (SwapRouter02, `exactInputSingle`) |
 | Identity | ENS (ethers v6 resolver, text records) |
-| Automation | KeeperHub (`checkUpkeep` / `performUpkeep`) |
+| Automation | KeeperHub (Cron workflow → `performUpkeep` on-chain + HTTP webhook trigger) |
 | AI Brain | 0G Compute AI Inference (tool-use loop via 0G Compute Network) |
 | CLI UI | Ink (React for terminal), chalk, ora, boxen |
 | Language | TypeScript throughout |
@@ -75,7 +77,9 @@ ZERO_G_RPC=               # 0G storage node endpoint
 ZERO_G_PRIVATE_KEY=       # 0G storage signer
 ENS_RESOLVER=             # ENS PublicResolver on Sepolia
 UNISWAP_ROUTER=           # SwapRouter02 on Sepolia
-KEEPERHUB_REGISTRY=       # KeeperHub registry address
+KEEPERHUB_API_KEY=        # KeeperHub API key from app.keeperhub.com dashboard
+WEBHOOK_SECRET=           # shared secret between KeeperHub HTTP action and serve.ts
+WEBHOOK_PORT=3000         # port the webhook server listens on (npm run serve)
 ETHERSCAN_API_KEY=        # contract verification
 ```
 
@@ -86,6 +90,7 @@ ETHERSCAN_API_KEY=        # contract verification
 3. 0G trade history is **append-only** — never overwrite, only append + re-upload.
 4. `performUpkeep` is idempotent — safe to call twice in the same block.
 5. ENS instruction is cleared after the agent processes it — never re-apply.
+6. KeeperHub webhook endpoint must verify `WEBHOOK_SECRET` before running the agent — never accept unauthenticated trigger requests.
 
 ## Commands
 
@@ -99,7 +104,14 @@ npm run mint                                     # mint iNFT, upload personality
 npm run agent -- --nft-id 1                      # run one decision cycle (Ink UI)
 npm run history -- --nft-id 1                    # print trade history from 0G
 npm run send-instruction -- --nft-id 1 "be conservative"  # write ENS text record
-npm run watch -- --nft-id 1                      # keeper watcher, autonomous loop
+npm run watch -- --nft-id 1                      # keeper watcher, polls for on-chain triggers
+
+# KeeperHub integration
+npm run serve -- --nft-id 1                      # start HTTP webhook server for KeeperHub
+npm run keeper -- --trigger                       # manually fire forceUpkeep (demo fallback)
+npm run keeper -- --fund 0.05                     # send ETH to KeeperAdapter
+npm run keeper -- --stop                          # pause keeper on-chain
+npm run keeper -- --start                         # resume keeper on-chain
 ```
 
 ## Demo Script (CLI, ~3 min)
