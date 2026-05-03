@@ -316,6 +316,74 @@
 
 ---
 
+## DAY 7 — ENS Subdomain Identity
+
+> **Goal**: `nerosbot.eth` resolves to iNFT contract. Every minted NFT gets its own subdomain `{tokenId}.nerosbot.eth` with addr → PortfolioManager and avatar → the specific ERC-721 token.
+
+### One-time Root Setup
+
+- [ ] **T-180** Add `ENS_REGISTRY=0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e` to `.env` and `.env.example`
+- [ ] **T-181** Write `scripts/setup-ens-root.ts`:
+  - Set `nerosbot.eth` addr record → iNFT contract address
+  - `resolver.setAddr(namehash("nerosbot.eth"), iNFTAddress)`
+  - Log: `✓ nerosbot.eth → {iNFTAddress}`
+- [ ] **T-182** Run `npx hardhat run scripts/setup-ens-root.ts --network sepolia`
+  - Verify: `cast call $ENS_RESOLVER "addr(bytes32)(address)" $(cast namehash nerosbot.eth) --rpc-url $RPC_URL`
+  - Must return iNFT contract address
+
+### ENS Helper Functions
+
+- [ ] **T-183** Add to `intelligence/agent/ens.ts`:
+  ```ts
+  createSubdomain(tokenId: number, ownerAddress: string): Promise<void>
+  // ENSRegistry.setSubnodeRecord(parentNode, label, owner, resolver, 0)
+  ```
+- [ ] **T-184** Add to `intelligence/agent/ens.ts`:
+  ```ts
+  setSubdomainAddr(tokenId: number, portfolioManagerAddress: string): Promise<void>
+  // resolver.setAddr(namehash(`${tokenId}.nerosbot.eth`), pmAddress)
+  ```
+- [ ] **T-185** Add to `intelligence/agent/ens.ts`:
+  ```ts
+  setSubdomainAvatar(tokenId: number, iNFTAddress: string): Promise<void>
+  // resolver.setText(namehash(`${tokenId}.nerosbot.eth`), "avatar",
+  //   `eip155:11155111/erc721:${iNFTAddress}/${tokenId}`)
+  ```
+
+### Mint Flow Update
+
+- [ ] **T-186** Update `cli/commands/mint.ts` — after `iNFT.mint()` confirms, call in sequence:
+  1. `createSubdomain(tokenId, walletAddress)`
+  2. `setSubdomainAddr(tokenId, portfolioManagerAddress)`
+  3. `setSubdomainAvatar(tokenId, iNFTAddress)`
+  - Add 3 progress lines to mint output:
+    ```
+    ✓ Subdomain created      1.nerosbot.eth
+    ✓ Addr record set        1.nerosbot.eth → {pmAddress}
+    ✓ Avatar record set      eip155:11155111/erc721:{iNFT}/1
+    ```
+- [ ] **T-187** Update `intelligence/agent/ens.ts` — `readInstruction` and `setInstruction` read from subdomain `{tokenId}.nerosbot.eth` instead of `nerosbot.eth` when subdomain exists
+
+### Verification
+
+- [ ] **T-188** Run `npm run mint` → confirm 3 new ENS txs appear on Sepolia Etherscan
+- [ ] **T-189** Verify subdomain resolves:
+  ```bash
+  # addr record
+  cast call $ENS_RESOLVER "addr(bytes32)(address)" \
+    $(cast namehash 1.nerosbot.eth) --rpc-url $RPC_URL
+  # → PortfolioManager address
+
+  # avatar record
+  cast call $ENS_RESOLVER "text(bytes32,string)(string)" \
+    $(cast namehash 1.nerosbot.eth) "avatar" --rpc-url $RPC_URL
+  # → "eip155:11155111/erc721:0x.../1"
+  ```
+- [ ] **T-190** Confirm `npm run send-instruction -- --nft-id 1 "..."` writes to `1.nerosbot.eth` (not `nerosbot.eth`)
+- [ ] **T-191** Confirm `npm run agent -- --nft-id 2` reads from `2.nerosbot.eth` — no instruction collision with NFT #1
+
+---
+
 ## Work Allocation (2-Person Team)
 
 | Person | Days | Tasks |

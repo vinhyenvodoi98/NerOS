@@ -510,6 +510,73 @@ Response: { decision: "buy", reason: "...", txHash: "0x..." }
 
 ---
 
+## ENS Subdomain Identity (Phase 7)
+
+### Goal
+
+Map `nerosbot.eth` → iNFT contract address, and automatically create a subdomain `{tokenId}.nerosbot.eth` for every minted NFT, with avatar pointing to the specific token.
+
+### Architecture
+
+```
+nerosbot.eth
+  └─ addr record → iNFT contract address   (one-time setup)
+
+{tokenId}.nerosbot.eth                      (created on every mint)
+  ├─ addr record   → PortfolioManager of that NFT
+  ├─ avatar record → eip155:11155111/erc721:{iNFTAddress}/{tokenId}
+  └─ text["inft.instruction"] → instruction channel (per-NFT, no collision)
+```
+
+### On-chain calls required per mint
+
+```
+1. ENSRegistry.setSubnodeRecord(
+     namehash("nerosbot.eth"),         // parent node
+     keccak256("{tokenId}"),           // label
+     ownerAddress,                     // subdomain owner
+     resolverAddress,                  // same resolver as parent
+     0                                 // ttl
+   )
+
+2. PublicResolver.setAddr(
+     namehash("{tokenId}.nerosbot.eth"),
+     portfolioManagerAddress
+   )
+
+3. PublicResolver.setText(
+     namehash("{tokenId}.nerosbot.eth"),
+     "avatar",
+     "eip155:11155111/erc721:{iNFTAddress}/{tokenId}"
+   )
+```
+
+### New env vars
+
+```bash
+ENS_REGISTRY=0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e  # same address on all networks
+```
+
+### Files to change
+
+| File | Change |
+|---|---|
+| `intelligence/agent/ens.ts` | Add `setRootAddr()`, `createSubdomain()`, `setSubdomainAddr()`, `setSubdomainAvatar()` |
+| `cli/commands/mint.ts` | After `iNFT.mint()`, call subdomain setup functions |
+| `.env.example` | Add `ENS_REGISTRY` |
+| `scripts/setup-ens-root.ts` | One-time script to set `nerosbot.eth` addr → iNFT contract |
+
+### ENS instruction key per subdomain
+
+```ts
+// ens.ts — change hardcoded key to per-NFT key on subdomain
+const ENS_KEY = "inft.instruction";  // read from {tokenId}.nerosbot.eth, not nerosbot.eth
+```
+
+Each NFT reads/writes instructions on its own subdomain — no collision between NFTs.
+
+---
+
 ## Risk Register
 
 | Risk | Likelihood | Mitigation |
