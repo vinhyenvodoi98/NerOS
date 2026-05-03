@@ -1,3 +1,10 @@
+# OG — Builder Feedback
+
+Project: **NerOS / iNFT Portfolio Manager**
+Track: 0G Track 2 — iNFT Innovation + ETHGlobal KeeperHub Prize
+Builder: vinhyenvodoi98
+Date: 2026-05-03
+
 1. There is error when i install
 ```
 npm install @0gfoundation/0g-ts-sdk ethers
